@@ -1,70 +1,85 @@
+package org.spb.project.presenter
+
+import org.spb.project.model.CircleNode
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.unit.IntSize
 
+// Презентер для взаимодействия с UI: хранит состояние узлов, масштабирования и панорамирования канвы
 class CanvasPresenter {
+    // Список узлов для отображения — Compose автоматически обновит View при изменениях
     private val circleNodeList = mutableStateListOf(
-        CircleNode(Offset(300f, 300f)),
+        CircleNode(Offset(300f, 300f)),  // начальные две точки для примера
         CircleNode(Offset(600f, 500f))
     )
+
+    // Открытая неизменяемая копия списка, чтобы View не мог напрямую менять коллекцию
     val circleNodes: List<CircleNode> get() = circleNodeList
 
-    private var activeDragCircleIndex by mutableStateOf<Int?>(null)
-    val activeDragIndex: Int? get() = activeDragCircleIndex
+    // Индекс текущего перетаскиваемого узла, или null, если перетаскивание не активно
+    private var activeDragIndex by mutableStateOf<Int?>(null)
 
-    var zoomScale by mutableStateOf(1f)
+    // Текущий масштаб канвы; приватный сеттер, чтобы изменение только через контролируемые методы
+    var zoom by mutableStateOf(1f)
         private set
 
-    // Увеличение масштаба канваса
-    fun zoomIn() {
-        zoomScale = (zoomScale + 0.05f).coerceAtMost(5f)  // Максимальное увеличение 5x
-    }
+    // Смещение канвы (панорама) в мировых координатах
+    var pan by mutableStateOf(Offset.Zero)
 
-    // Уменьшение масштаба канваса
-    fun zoomOut() {
-        zoomScale = (zoomScale - 0.05f).coerceAtLeast(0.05f) // Минимальный масштаб 0.05x (5% от размера)
-    }
-
-    // Добавление нового круга в канвас
+    // Добавляет новый узел в центр области (примерная позиция)
     fun addCircle() {
         circleNodeList.add(CircleNode(Offset(500f, 800f)))
     }
 
-    // Начать перетаскивание круга, если нажата внутренняя область круга
-    fun startDrag(touchPosition: Offset, paddingPx: Float): Boolean {
-        val adjustedTouch = touchPosition / zoomScale + Offset(paddingPx, paddingPx)
-        activeDragCircleIndex = circleNodeList.indexOfFirst { circle ->
-            (circle.offset - adjustedTouch).getDistance() < circle.radius
-        }.takeIf { it != -1 }
-        return activeDragCircleIndex != null
+    /**
+     * Начало перетаскивания: определяем, какой узел попал под палец/мышь
+     * pos — экранные координаты события,
+     * padding — отступ внутренней области канвы в пикселях
+     * Возвращаем true, если перетаскивание узла началось
+     */
+    fun startDrag(pos: Offset, padding: Float): Boolean {
+        // Преобразуем экранные координаты в мировые (с учётом зума, панорамы и отступов)
+        val world = (pos / zoom) + Offset(padding, padding) + pan
+        // Ищем первый узел, расстояние до центра которого меньше радиуса
+        activeDragIndex =
+            circleNodeList.indexOfFirst { (it.offset - world).getDistance() < it.radius }.takeIf { it != -1 }
+        return activeDragIndex != null
     }
 
-    // Обработка перемещения круга
-    fun drag(dragOffset: Offset, canvasSize: IntSize, paddingPx: Float) {
-        activeDragCircleIndex?.let { index ->
-            val circle = circleNodeList[index]
-            val scaledDragOffset = dragOffset / zoomScale
-
-            val updatedOffset = circle.offset + scaledDragOffset
-            val circleRadius = circle.radius
-
-            // Ограничение перемещения круга внутри канваса
-            val minBoundary = paddingPx + circleRadius
-            val maxXBoundary = canvasSize.width.toFloat() / zoomScale + paddingPx - circleRadius
-            val maxYBoundary = canvasSize.height.toFloat() / zoomScale + paddingPx - circleRadius
-
-            val clampedX = updatedOffset.x.coerceIn(minBoundary, maxXBoundary)
-            val clampedY = updatedOffset.y.coerceIn(minBoundary, maxYBoundary)
-
-            circleNodeList[index] = circle.copy(offset = Offset(clampedX, clampedY))
+    /**
+     * Обработка перемещения во время перетаскивания
+     * delta — изменение позиции курсора в экранных координатах
+     */
+    fun onDrag(delta: Offset) {
+        activeDragIndex?.let { idx ->
+            // Если перетаскиваем узел, двигаем его в мировых координатах
+            val node = circleNodeList[idx]
+            val newOff = node.offset + (delta / zoom)
+            circleNodeList[idx] = node.copy(offset = newOff)
+        } ?: run {
+            // Иначе двигаем саму панораму канвы
+            pan -= delta / zoom
         }
     }
 
-    // Завершение перетаскивания круга
+    // Завершаем любое активное перетаскивание
     fun endDrag() {
-        activeDragCircleIndex = null
+        activeDragIndex = null
+    }
+
+    /**
+     * Изменяем масштаб канвы с фокусом на указанной точке
+     * factor — множитель масштабирования,
+     * focus — точка в экранных координатах, вокруг которой происходит зум
+     */
+    fun zoomBy(factor: Float, focus: Offset) {
+        val oldZoom = zoom
+        // Ограничиваем масштаб, чтобы он не стал слишком маленьким или слишком большим
+        val newZoom = (oldZoom * factor).coerceIn(0.1f, 5f)
+        // Корректируем панораму так, чтобы фокус оставался на месте
+        pan += (focus / oldZoom) - (focus / newZoom)
+        zoom = newZoom
     }
 }
