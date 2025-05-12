@@ -5,15 +5,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.geometry.Offset
+import common.Graph
+import common.GraphType
 
 // Презентер для взаимодействия с UI: хранит состояние узлов, масштабирования и панорамирования канвы
 class CanvasPresenter {
     // Список узлов для отображения — Compose автоматически обновит View при изменениях
-    private val circleNodeList = mutableStateListOf(
-        CircleNode(Offset(300f, 300f)),  // начальные две точки для примера
-        CircleNode(Offset(600f, 500f))
-    )
+    private val graph = Graph(GraphType.WEIGHTED).apply {
+        addVertex(300.0, 300.0)
+        addVertex(600.0, 500.0)
+        addVertex(300.0, 200.0)
+    }
+
+    // Получаем готовый mutableStateListOf<CircleNode>
+    private val circleNodeList = graph.toCircleNodeList()
 
     // Открытая неизменяемая копия списка, чтобы View не мог напрямую менять коллекцию
     val circleNodes: List<CircleNode> get() = circleNodeList
@@ -81,5 +88,23 @@ class CanvasPresenter {
         // Корректируем панораму так, чтобы фокус оставался на месте
         pan += (focus / oldZoom) - (focus / newZoom)
         zoom = newZoom
+    }
+
+
+    private fun Graph.toCircleNodeList(): SnapshotStateList<CircleNode> {
+        val list = mutableStateListOf<CircleNode>()
+        // Проходим по всем вершинам и создаём CircleNode из их координат
+        this.getVertexes().forEach { vertex ->
+            // vertex.x и vertex.y у вас Double, а Offset ожидает Float
+            list.add(
+                CircleNode(
+                    Offset(
+                        vertex.x.toFloat(),
+                        vertex.y.toFloat()
+                    )
+                )
+            )
+        }
+        return list
     }
 }
