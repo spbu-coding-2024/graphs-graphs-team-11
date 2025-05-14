@@ -1,110 +1,187 @@
 package org.spb.project.presenter
 
-import org.spb.project.model.CircleNode
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.*
 import androidx.compose.ui.geometry.Offset
-import common.Graph
-import common.GraphType
+import androidx.compose.ui.unit.IntSize
+import org.spb.project.common.Edge
+import org.spb.project.common.Graph
+import org.spb.project.common.GraphType
+import org.spb.project.model.CircleNode
 
-// Презентер для взаимодействия с UI: хранит состояние узлов, масштабирования и панорамирования канвы
 class CanvasPresenter {
-    // Список узлов для отображения — Compose автоматически обновит View при изменениях
-    private val graph = Graph(GraphType.WEIGHTED).apply {
-        addVertex(300.0, 300.0)
-        addVertex(600.0, 500.0)
-        addVertex(300.0, 200.0)
-    }
+    private var graph by mutableStateOf(Graph(GraphType.NORMAL))
+    private val db = GraphDbHelper
 
-    // Получаем готовый mutableStateListOf<CircleNode>
-    private val circleNodeList = graph.toCircleNodeList()
+    // UI-список вершин
+    private val nodesList = mutableStateListOf<CircleNode>()
+    val circleNodes: List<CircleNode> get() = nodesList
 
-    // Открытая неизменяемая копия списка, чтобы View не мог напрямую менять коллекцию
-    val circleNodes: List<CircleNode> get() = circleNodeList
+    // Список рёбер из модели
+    val edges: List<List<Edge>> get() = graph.getEdges()
 
-    // Индекс текущего перетаскиваемого узла, или null, если перетаскивание не активно
-    private var activeDragIndex by mutableStateOf<Int?>(null)
-
-    // Текущий масштаб канвы; приватный сеттер, чтобы изменение только через контролируемые методы
-    var zoom by mutableStateOf(1f)
+    // Текущий выбранный узел (или null)
+    var selectedNodeIndex by mutableStateOf<Int?>(null)
         private set
 
-    // Смещение канвы (панорама) в мировых координатах
-    var pan by mutableStateOf(Offset.Zero)
+    private var activeDragIndex by mutableStateOf<Int?>(null)
+    var zoom by mutableStateOf(1f); private set
+    var pan by mutableStateOf(Offset.Zero); private set
 
-    // Добавляет новый узел в центр области (примерная позиция)
-    fun addCircle() {
-        circleNodeList.add(CircleNode(Offset(500f, 800f)))
+    init {
+        loadGraph()
+    }
+
+    fun selectNode(index: Int?) {
+        selectedNodeIndex = index
     }
 
     /**
-     * Начало перетаскивания: определяем, какой узел попал под палец/мышь
-     * pos — экранные координаты события,
-     * padding — отступ внутренней области канвы в пикселях
-     * Возвращаем true, если перетаскивание узла началось
+     * Добавить вершину.
+     * Если узел выбран, добавляем её и соединяем с ним.
+     */
+    fun addCircle(color: Int) {
+        val pos = if (selectedNodeIndex != null) {
+            val sel = nodesList[selectedNodeIndex!!]
+            sel.offset + Offset(50f, 50f)
+        } else {
+            Offset(500f, 800f)
+        }
+
+        // 1) модель
+        graph.addVertex(pos.x.toDouble(), pos.y.toDouble(), color)
+        val newIdx = graph.getVertexes().lastIndex
+
+        // если был выбран узел — добавить ребро
+        selectedNodeIndex?.let { selIdx ->
+            // вес = 1, цвет ребра можно по умолчанию
+            val edgeColor = 0xFF888888.toInt()
+            graph.addEdge(selIdx, newIdx, 1, edgeColor)
+        }
+
+        // 2) UI
+        nodesList.add(CircleNode(pos, color = color))
+    }
+
+    /**
+     * Удалить выбранный узел и все инцидентные рёбра.
+     */
+    fun deleteSelectedNode() {
+        selectedNodeIndex?.let { idx ->
+            // --- 1) модель: удаляем саму вершину ---
+            if (idx in graph.getVertexes().indices) {
+                graph.getVertexes().removeAt(idx)
+            }
+            // --- 2) модель: удаляем список исходящих рёбер этой вершины ---
+            if (idx in graph.getEdges().indices) {
+                graph.getEdges().removeAt(idx)
+            }
+            // --- 3) модель: пробегаем по всем оставшимся спискам рёбер ---
+            graph.getEdges().forEach { list ->
+                // удаляем все рёбра, ведущие в idx
+                list.removeAll { it.vertex == idx }
+                // теперь все вершины с большим индексом «сдвигаем» на 1
+                for (i in list.indices) {
+                    val e = list[i]
+                    if (e.vertex > idx) {
+                        // создаём новое ребро с уменьшенным vertex
+                        list[i] = Edge(
+                            vertex = e.vertex - 1,
+                            weight = e.weight,
+                            color = e.color
+                        )
+                    }
+                }
+            }
+
+            // --- 4) UI: удаляем узел из списка и сбрасываем выделение ---
+            if (idx in nodesList.indices) {
+                nodesList.removeAt(idx)
+            }
+            selectedNodeIndex = null
+        }
+    }
+
+
+    fun paintSelectedNode(color: Int) {
+        selectedNodeIndex?.let { idx ->
+            nodesList[idx] = nodesList[idx].copy(color = color)
+        }
+    }
+
+    fun paintAll(color: Int) {
+        nodesList.replaceAll { it.copy(color = color) }
+    }
+
+    fun saveGraph(graphId: Int = 1) {
+        nodesList.forEachIndexed { i, node ->
+            val v = graph.getVertexes()[i]
+            v.x = node.offset.x.toDouble()
+            v.y = node.offset.y.toDouble()
+            v.color = node.color
+        }
+        db.saveGraph(graph, graphId)
+    }
+
+    fun loadGraph(graphId: Int = 1) {
+        graph = db.loadGraph(graphId)
+        nodesList.clear()
+        graph.getVertexes().forEach { v ->
+            nodesList.add(CircleNode(Offset(v.x.toFloat(), v.y.toFloat()), color = v.color))
+        }
+        selectedNodeIndex = null
+    }
+
+    /**
+     * Начало перетаскивания узла/канвы.
      */
     fun startDrag(pos: Offset, padding: Float): Boolean {
-        // Преобразуем экранные координаты в мировые (с учётом зума, панорамы и отступов)
-        val world = (pos / zoom) + Offset(padding, padding) + pan
-        // Ищем первый узел, расстояние до центра которого меньше радиуса
-        activeDragIndex =
-            circleNodeList.indexOfFirst { (it.offset - world).getDistance() < it.radius }.takeIf { it != -1 }
+        val world = (pos / zoom) + pan + Offset(padding, padding)
+        activeDragIndex = nodesList.indexOfFirst { (it.offset - world).getDistance() < it.radius }
+            .takeIf { it != -1 }
         return activeDragIndex != null
     }
 
     /**
-     * Обработка перемещения во время перетаскивания
-     * delta — изменение позиции курсора в экранных координатах
+     * Перетаскивание — либо конкретный узел, либо канвас.
      */
     fun onDrag(delta: Offset) {
         activeDragIndex?.let { idx ->
-            // Если перетаскиваем узел, двигаем его в мировых координатах
-            val node = circleNodeList[idx]
-            val newOff = node.offset + (delta / zoom)
-            circleNodeList[idx] = node.copy(offset = newOff)
+            // двигаем вершину
+            nodesList[idx] = nodesList[idx].copy(offset = nodesList[idx].offset + (delta / zoom))
         } ?: run {
-            // Иначе двигаем саму панораму канвы
+            // двигаем канвас
             pan -= delta / zoom
         }
     }
 
-    // Завершаем любое активное перетаскивание
+    /**
+     * Альтернативный вариант: при ограничениях границ, если нужен.
+     */
+    fun onDragForNode(idx: Int, delta: Offset, padding: Float, canvasSize: IntSize, zoom: Float) {
+        val old = nodesList[idx].offset
+        val worldDelta = delta / zoom
+        val candidate = old + worldDelta
+
+        val minX = pan.x + padding
+        val minY = pan.y + padding
+        val maxX = minX + canvasSize.width / zoom
+        val maxY = minY + canvasSize.height / zoom
+
+        val clampedX = candidate.x.coerceIn(minX, maxX)
+        val clampedY = candidate.y.coerceIn(minY, maxY)
+        val deltaClamped = Offset(clampedX, clampedY) - old
+
+        onDrag(deltaClamped * zoom)
+    }
+
     fun endDrag() {
         activeDragIndex = null
     }
 
-    /**
-     * Изменяем масштаб канвы с фокусом на указанной точке
-     * factor — множитель масштабирования,
-     * focus — точка в экранных координатах, вокруг которой происходит зум
-     */
     fun zoomBy(factor: Float, focus: Offset) {
-        val oldZoom = zoom
-        // Ограничиваем масштаб, чтобы он не стал слишком маленьким или слишком большим
-        val newZoom = (oldZoom * factor).coerceIn(0.1f, 5f)
-        // Корректируем панораму так, чтобы фокус оставался на месте
-        pan += (focus / oldZoom) - (focus / newZoom)
+        val old = zoom
+        val newZoom = (old * factor).coerceIn(0.1f, 5f)
+        pan += (focus / old) - (focus / newZoom)
         zoom = newZoom
-    }
-
-
-    private fun Graph.toCircleNodeList(): SnapshotStateList<CircleNode> {
-        val list = mutableStateListOf<CircleNode>()
-        // Проходим по всем вершинам и создаём CircleNode из их координат
-        this.getVertexes().forEach { vertex ->
-            // vertex.x и vertex.y у вас Double, а Offset ожидает Float
-            list.add(
-                CircleNode(
-                    Offset(
-                        vertex.x.toFloat(),
-                        vertex.y.toFloat()
-                    )
-                )
-            )
-        }
-        return list
     }
 }

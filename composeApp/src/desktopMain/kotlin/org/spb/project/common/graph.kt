@@ -1,56 +1,51 @@
-package common
+package org.spb.project.common
 
+/**
+ * Граф с заранее заданным типом (NORMAL, ORIENTED, WEIGHTED)
+ */
+class Graph(private var typeOfGraph: GraphType) {
 
-open class Graph(type: GraphType) {
-    private var typeOfGraph = type
-    private var vertexes = mutableListOf<Vertex>()
-    private var edges = mutableListOf<MutableList<Edge>>()
+    private val vertexes = mutableListOf<Vertex>()
+    private val edges = mutableListOf<MutableList<Edge>>()
 
-    /*
-        Изменяем тип графа
-        Типы графа: Обычный, Ориентированный, Взвешенный
-    */
-    fun changeType(t: GraphType) {
-        typeOfGraph = t
+    fun getType(): GraphType = typeOfGraph
+
+    /**
+     * Добавить вершину.
+     * @param x координата X
+     * @param y координата Y
+     * @param color ARGB-цвет в виде Int
+     */
+    fun addVertex(x: Double, y: Double, color: Int = 0xFF000000.toInt()) {
+        vertexes.add(Vertex(x, y, color))
+        edges.add(mutableListOf())
     }
 
-    /*
-    Функция добавления ребра
-    В качестве аргументов: Номер вершины от которой начинается ребро (нумерация с 0), Номер вершины куда идёт ребро
-    Вес ребра(1 в невзвешенном графе) и цвет ребра (Пока что Int, потом поменяем)
-    */
-    fun addEdge(startVertex: Int, finalVertex: Int, weight: Int, color: Int){
+    /**
+     * Добавить ребро.
+     * @param startVertex индекс начальной вершины
+     * @param finalVertex индекс конечной вершины
+     * @param weight вес ребра
+     * @param color ARGB-цвет в виде Int
+     */
+    fun addEdge(startVertex: Int, finalVertex: Int, weight: Int, color: Int) {
         if (edges.size < startVertex + 1) {
             while (edges.size < startVertex + 1) {
-                edges.add(mutableListOf<Edge>())
+                edges.add(mutableListOf())
             }
         }
         edges[startVertex].add(Edge(finalVertex, weight, color))
     }
 
-    /*
-    Функция добавления вершины
-    В качестве аргументов: координаты x, y
-    */
-    fun addVertex(x: Double, y: Double){
-        vertexes.add(Vertex(x,y))
-    }
+    /**
+     * Возвращает **изменяемый** список вершин,
+     * чтобы можно было делать removeAt(), add(), clear() и т.п.
+     */
+    fun getVertexes(): MutableList<Vertex> = vertexes
 
-    /*
-    Возврат матрицы смежности
-    Временно небезопасно
-    */
-    fun getEdges(): MutableList<MutableList<Edge>>{
-        return edges
-    }
-    
-    /*
-    Возврат всего списка вершин
-    Временно небезопасно
-    */
-    fun getVertexes(): MutableList<Vertex> {
-        return vertexes
-    }
-
+    /**
+     * Возвращает **изменяемый** список списков рёбер,
+     * чтобы можно было править матрицу смежности на лету.
+     */
+    fun getEdges(): MutableList<MutableList<Edge>> = edges
 }
-

@@ -1,4 +1,5 @@
-package common
+package org.spb.project.common
+
 /*
     Класс ребра
     Первый аргумент - конечная вершина
@@ -10,4 +11,3 @@ open class Edge(
     var weight: Int,
     var color: Int,
 )
-

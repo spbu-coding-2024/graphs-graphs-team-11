@@ -22,6 +22,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.runtime.compose)
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
+            implementation("org.xerial:sqlite-jdbc:3.36.0.3")
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
