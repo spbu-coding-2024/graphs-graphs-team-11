@@ -19,3 +19,5 @@ captures
 .github
 *./composeApp/build
 /composeApp/graphs.db
+/composeApp/graphs.db-shm
+/composeApp/graphs.db-wal

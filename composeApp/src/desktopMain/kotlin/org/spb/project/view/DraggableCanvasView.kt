@@ -203,19 +203,13 @@ fun DraggableCanvasView(
         }
     }
 }
-
 @Composable
 fun GraphScreen(presenter: CanvasPresenter) {
-    // Список сохранённых графов
-    var graphList by remember { mutableStateOf<List<GraphMeta>>(emptyList()) }
-    // Выбранный граф
-    var selected by remember { mutableStateOf<GraphMeta?>(null) }
-    // Состояние дропа
-    var expanded by remember { mutableStateOf(false) }
-    // Выбранный цвет для новых вершин
+    var graphList   by remember { mutableStateOf<List<GraphMeta>>(emptyList()) }
+    var selected    by remember { mutableStateOf<GraphMeta?>(null) }
+    var expanded    by remember { mutableStateOf(false) }
     var selectedColor by remember { mutableStateOf(Color.Blue) }
 
-    // Загрузим список графов из БД один раз при старте
     LaunchedEffect(Unit) {
         graphList = GraphDbHelper.getAllGraphs()
     }
@@ -245,29 +239,20 @@ fun GraphScreen(presenter: CanvasPresenter) {
                     Button(onClick = { presenter.addCircle(selectedColor.toArgb()) }) {
                         Text("Добавить вершину")
                     }
-                    Button(onClick = { presenter.zoomBy(1.1f, Offset.Zero) }) {
-                        Text("+")
-                    }
-                    Button(onClick = { presenter.zoomBy(0.9f, Offset.Zero) }) {
-                        Text("-")
-                    }
-                    Button(onClick = { presenter.saveGraph() }) {
-                        Text("Сохранить")
-                    }
+                    Button(onClick = { presenter.zoomBy(1.1f, Offset.Zero) }) { Text("+") }
+                    Button(onClick = { presenter.zoomBy(0.9f, Offset.Zero) }) { Text("–") }
+                    Button(onClick = { presenter.saveGraph() }) { Text("Сохранить") }
                 }
 
-                // Менеджер сохранённых графов
+                // Менеджер графов: выбор, загрузка, сохранение, удаление
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Dropdown для выбора графа
+                    // Dropdown выбор графа
                     Box {
                         Button(onClick = { expanded = true }) {
-                            Text(
-                                selected?.let { "Граф #${it.id} (${it.type})" }
-                                    ?: "Выбрать граф"
-                            )
+                            Text(selected?.let { "Граф #${it.id} (${it.type})" } ?: "Выбрать граф")
                         }
                         DropdownMenu(
                             expanded = expanded,
@@ -284,27 +269,41 @@ fun GraphScreen(presenter: CanvasPresenter) {
                         }
                     }
 
-                    // Кнопка Загрузить
+                    // Загрузить
                     Button(
-                        onClick = { selected?.let { presenter.loadGraph(it.id) } },
+                        onClick = {
+                            selected?.let {
+                                presenter.loadGraph(it.id)
+                            }
+                        },
                         enabled = selected != null
-                    ) {
-                        Text("Загрузить")
-                    }
+                    ) { Text("Загрузить") }
 
-                    // Кнопка Сохранить как новый
+                    // Сохранить как новый
                     Button(onClick = {
                         val newId = GraphDbHelper.getNextGraphId()
                         presenter.saveGraph(newId)
                         graphList = GraphDbHelper.getAllGraphs()
-                        // автоматически выбрать только что созданный
                         selected = graphList.firstOrNull { it.id == newId }
-                    }) {
-                        Text("Сохранить как новый")
+                    }) { Text("Сохранить как новый") }
+
+                    // *** Новая кнопка Удалить ***
+                    Button(
+                        onClick = {
+                            selected?.let {
+                                GraphDbHelper.deleteGraph(it.id)
+                                graphList = GraphDbHelper.getAllGraphs()
+                                selected = null
+                            }
+                        },
+                        enabled = selected != null,
+                        colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFFD32F2F))
+                    ) {
+                        Text("Удалить", color = Color.White)
                     }
                 }
 
-                // Dropdown для выбора цвета вершины
+                // Dropdown выбора цвета
                 ColorDropdown(
                     current  = selectedColor,
                     onSelect = { selectedColor = it }
@@ -328,8 +327,8 @@ fun GraphScreen(presenter: CanvasPresenter) {
             ) {
                 DraggableCanvasView(
                     presenter = presenter,
-                    modifier  = Modifier.fillMaxSize(),
-                    nodeColor = selectedColor
+                    nodeColor = selectedColor,
+                    modifier  = Modifier.fillMaxSize()
                 )
             }
         }

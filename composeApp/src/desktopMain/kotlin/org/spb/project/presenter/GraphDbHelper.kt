@@ -9,7 +9,6 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 
-
 object GraphDbHelper {
     private const val DB_URL              = "jdbc:sqlite:graphs.db"
     private const val BUSY_TIMEOUT_MS     = 5000
@@ -17,7 +16,7 @@ object GraphDbHelper {
     private const val DEFAULT_EDGE_COLOR   = 0xFF888888.toInt()  // серый
 
     init {
-        // Инициализация схемы и демо-данных
+        // Инициализация схемы
         getConnection().use { conn ->
             conn.createStatement().use { stmt ->
                 stmt.executeUpdate("""
@@ -46,7 +45,7 @@ object GraphDbHelper {
                     )
                 """.trimIndent())
             }
-            // если база пуста — заполняем 4 демо-графа
+            // Если пусто — создаём демо-графы 1–4
             getConnection().createStatement().use { stmt ->
                 val rs = stmt.executeQuery("SELECT COUNT(*) AS cnt FROM GraphInfo")
                 if (rs.next() && rs.getInt("cnt") == 0) {
@@ -59,7 +58,7 @@ object GraphDbHelper {
         }
     }
 
-    /** Открывает соединение и настраивает PRAGMA */
+    /** Открывает соединение и настраивает PRAGMA busy_timeout и WAL */
     private fun getConnection(): Connection {
         val conn = DriverManager.getConnection(DB_URL)
         conn.createStatement().use { stmt ->
@@ -126,7 +125,6 @@ object GraphDbHelper {
     fun loadGraph(graphId: Int = 1): Graph {
         val graph: Graph
         getConnection().use { conn ->
-            // 1) Тип
             val typeName = conn.prepareStatement(
                 "SELECT type FROM GraphInfo WHERE graph_id = ?"
             ).use { ps ->
@@ -136,7 +134,7 @@ object GraphDbHelper {
                 }
             }
             graph = Graph(GraphType.valueOf(typeName))
-            // 2) Вершины
+
             conn.prepareStatement(
                 "SELECT x, y, color FROM Vertices WHERE graph_id = ? ORDER BY idx"
             ).use { ps ->
@@ -151,7 +149,7 @@ object GraphDbHelper {
                     }
                 }
             }
-            // 3) Рёбра
+
             conn.prepareStatement(
                 "SELECT start_idx, end_idx, weight, color FROM Edges WHERE graph_id = ?"
             ).use { ps ->
@@ -169,6 +167,24 @@ object GraphDbHelper {
             }
         }
         return graph
+    }
+
+    /** Удалить граф и все его вершины/рёбра */
+    fun deleteGraph(graphId: Int) {
+        getConnection().use { conn ->
+            conn.autoCommit = false
+            try {
+                conn.createStatement().use { st ->
+                    st.executeUpdate("DELETE FROM GraphInfo WHERE graph_id = $graphId")
+                    st.executeUpdate("DELETE FROM Vertices  WHERE graph_id = $graphId")
+                    st.executeUpdate("DELETE FROM Edges     WHERE graph_id = $graphId")
+                }
+                conn.commit()
+            } catch (ex: SQLException) {
+                conn.rollback()
+                throw ex
+            }
+        }
     }
 
     /** Список всех графов для DropDownMenu */
@@ -191,7 +207,7 @@ object GraphDbHelper {
         return list
     }
 
-    /** Следующий свободный идентификатор = max+1 */
+    /** Следующий свободный идентификатор = max(graph_id)+1 */
     fun getNextGraphId(): Int {
         getConnection().use { conn ->
             conn.prepareStatement(
@@ -205,7 +221,10 @@ object GraphDbHelper {
         }
     }
 
-    // ─────────── ДЕМО-ГРАФЫ ────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────────────────
+    // Демонстрационные графы 1–4:
+    // 1) треугольник, 2) квадрат, 3) окружность, 4) 200 рандомных узлов
+    // ──────────────────────────────────────────────────────────────────────────
 
     private fun populateSampleGraph1() {
         val g = Graph(GraphType.NORMAL)
@@ -257,19 +276,16 @@ object GraphDbHelper {
         val maxY = 600.0
         val rnd = Random(0)
 
-        // 1) Раскидываем 200 вершин в произвольных местах
         repeat(count) {
             val x = minX + rnd.nextDouble() * (maxX - minX)
             val y = minY + rnd.nextDouble() * (maxY - minY)
             g.addVertex(x, y, DEFAULT_VERTEX_COLOR)
         }
 
-        // 2) Для каждой вершины соединяем её с тремя ближайшими
         val verts = g.getVertexes()
         for (i in 0 until count) {
             val xi = verts[i].x
             val yi = verts[i].y
-            // считаем расстояния до всех остальных
             val neighbors = verts.mapIndexed { j, v ->
                 j to ((xi - v.x).let { dx -> dx * dx } + (yi - v.y).let { dy -> dy * dy })
             }
@@ -280,7 +296,6 @@ object GraphDbHelper {
                 g.addEdge(i, j, 1, DEFAULT_EDGE_COLOR)
             }
         }
-
         saveGraph(g, 4)
     }
 }
