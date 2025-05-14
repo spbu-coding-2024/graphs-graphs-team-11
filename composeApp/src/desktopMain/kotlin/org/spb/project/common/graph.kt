@@ -3,6 +3,7 @@ package common
 
 open class Graph(type: GraphType) {
     private var typeOfGraph = type
+    fun getType(): GraphType = typeOfGraph
     private var vertexes = mutableListOf<Vertex>()
     private var edges = mutableListOf<MutableList<Edge>>()
 

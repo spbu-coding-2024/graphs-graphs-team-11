@@ -12,18 +12,19 @@ import common.GraphType
 
 // Презентер для взаимодействия с UI: хранит состояние узлов, масштабирования и панорамирования канвы
 class CanvasPresenter {
-    // Список узлов для отображения — Compose автоматически обновит View при изменениях
-    private val graph = Graph(GraphType.WEIGHTED).apply {
-        addVertex(300.0, 300.0)
-        addVertex(600.0, 500.0)
-        addVertex(300.0, 200.0)
-    }
+    private val db = GraphDbHelper
 
-    // Получаем готовый mutableStateListOf<CircleNode>
-    private val circleNodeList = graph.toCircleNodeList()
-
-    // Открытая неизменяемая копия списка, чтобы View не мог напрямую менять коллекцию
+    // теперь наблюдаемый список
+    private val circleNodeList = mutableStateListOf<CircleNode>()
     val circleNodes: List<CircleNode> get() = circleNodeList
+
+    // graph — var, чтобы можно было перезатыкать его при загрузке
+    private var graph: Graph = Graph(GraphType.WEIGHTED)
+
+    init {
+        // при старте сразу пробуем загрузить сохранённое состояние
+        loadGraph()
+    }
 
     // Индекс текущего перетаскиваемого узла, или null, если перетаскивание не активно
     private var activeDragIndex by mutableStateOf<Int?>(null)
@@ -37,8 +38,41 @@ class CanvasPresenter {
 
     // Добавляет новый узел в центр области (примерная позиция)
     fun addCircle() {
-        circleNodeList.add(CircleNode(Offset(500f, 800f)))
+        val x = 500
+        val y = 800
+                // сначала модель
+            graph.addVertex(x.toDouble(), y.toDouble())
+        // потом UI-список
+        circleNodeList.add(CircleNode(Offset(x.toFloat(), y.toFloat())))
     }
+
+    fun saveGraph(graphId: Int = 1) {
+        // синхронизируем координаты из UI в модель
+        circleNodeList.forEachIndexed { idx, node ->
+            val vertex = graph.getVertexes()[idx]
+            vertex.x = node.offset.x.toDouble()
+            vertex.y = node.offset.y.toDouble()
+        }
+        // сохраняем уже «правильную» модель
+        GraphDbHelper.saveGraph(graph, graphId)
+    }
+
+
+    fun loadGraph(graphId: Int = 1) {
+        // 1) заменяем нашу модель на загруженную
+        graph = GraphDbHelper.loadGraph(graphId)
+
+        // 2) очищаем UI-список и заполняем его из новой модели
+        circleNodeList.clear()
+        graph.getVertexes().forEach { v ->
+            circleNodeList.add(
+                CircleNode(Offset(v.x.toFloat(), v.y.toFloat()))
+            )
+        }
+    }
+
+
+
 
     /**
      * Начало перетаскивания: определяем, какой узел попал под палец/мышь
