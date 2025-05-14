@@ -22,70 +22,9 @@ import androidx.compose.ui.input.pointer.pointerMoveFilter
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.*
-import org.spb.project.model.CircleNode
 import org.spb.project.presenter.CanvasPresenter
 import org.spb.project.presenter.GraphDbHelper
 import org.spb.project.presenter.GraphMeta
-
-@Composable
-fun TopControlPanel(
-    onAdd: () -> Unit,
-    onZoomIn: () -> Unit,
-    onZoomOut: () -> Unit,
-    onSave: () -> Unit
-) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Button(onClick = onAdd)    { Text("Добавить круг") }
-        Button(onClick = onZoomIn) { Text("＋") }
-        Button(onClick = onZoomOut){ Text("－") }
-        Button(onClick = onSave)   { Text("Сохранить граф") }
-    }
-}
-
-@Composable
-fun GraphManagerPanel(presenter: CanvasPresenter) {
-    var graphList by remember { mutableStateOf(emptyList<GraphMeta>()) }
-    var selected  by remember { mutableStateOf<GraphMeta?>(null) }
-    var expanded  by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        graphList = GraphDbHelper.getAllGraphs()
-    }
-
-    Row(
-        Modifier.padding(horizontal = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Button(onClick = { expanded = true }) {
-            Text(selected?.let { "Граф #${it.id} (${it.type})" } ?: "Выбрать граф")
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            graphList.forEach { meta ->
-                DropdownMenuItem(onClick = {
-                    selected = meta
-                    expanded = false
-                }) {
-                    Text("Граф #${meta.id} (${meta.type})")
-                }
-            }
-        }
-        Button(
-            onClick = { selected?.let { presenter.loadGraph(it.id) } },
-            enabled = selected != null
-        ) { Text("Загрузить") }
-        Button(onClick = {
-            val newId = GraphDbHelper.getNextGraphId()
-            presenter.saveGraph(newId)
-            graphList = GraphDbHelper.getAllGraphs()
-            selected = graphList.find { it.id == newId }
-        }) { Text("Сохранить как новый") }
-    }
-}
 
 /**
  * Canvas с поддержкой:
@@ -115,7 +54,7 @@ fun DraggableCanvasView(
     )
 
     // Масштаб hover
-    val hoverScales = nodes.mapIndexed { idx, _ ->
+    val hoverScales = List(nodes.size) { idx ->
         animateFloatAsState(
             targetValue = if (idx == hoverIndex) 1.2f else 1f,
             animationSpec = tween(200)
@@ -227,13 +166,11 @@ fun DraggableCanvasView(
 }
 
 
-
-
 @Composable
 fun GraphScreen(presenter: CanvasPresenter) {
-    var graphList     by remember { mutableStateOf<List<GraphMeta>>(emptyList()) }
-    var selected      by remember { mutableStateOf<GraphMeta?>(null) }
-    var expanded      by remember { mutableStateOf(false) }
+    var graphList by remember { mutableStateOf<List<GraphMeta>>(emptyList()) }
+    var selected by remember { mutableStateOf<GraphMeta?>(null) }
+    var expanded by remember { mutableStateOf(false) }
     var selectedColor by remember { mutableStateOf(Color.Blue) }
 
     LaunchedEffect(Unit) {
@@ -262,13 +199,17 @@ fun GraphScreen(presenter: CanvasPresenter) {
                     Button(onClick = { presenter.paintAll(selectedColor.toArgb()) }) {
                         Text("Окрасить все")
                     }
-                    Button(onClick = { presenter.paintSelectedNode(selectedColor.toArgb()) },
-                        enabled = presenter.selectedNodeIndex != null) {
+                    Button(
+                        onClick = { presenter.paintSelectedNode(selectedColor.toArgb()) },
+                        enabled = presenter.selectedNodeIndex != null
+                    ) {
                         Text("Окрасить выбранную")
                     }
-                    Button(onClick = { presenter.deleteSelectedNode() },
+                    Button(
+                        onClick = { presenter.deleteSelectedNode() },
                         enabled = presenter.selectedNodeIndex != null,
-                        colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)) {
+                        colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)
+                    ) {
                         Text("Удалить выбранную", color = Color.White)
                     }
                 }
@@ -286,8 +227,10 @@ fun GraphScreen(presenter: CanvasPresenter) {
                             }
                         }
                     }
-                    Button(onClick = { selected?.let { presenter.loadGraph(it.id) } },
-                        enabled = selected != null) {
+                    Button(
+                        onClick = { selected?.let { presenter.loadGraph(it.id) } },
+                        enabled = selected != null
+                    ) {
                         Text("Загрузить")
                     }
                     Button(onClick = {
@@ -296,14 +239,16 @@ fun GraphScreen(presenter: CanvasPresenter) {
                         graphList = GraphDbHelper.getAllGraphs()
                         selected = graphList.firstOrNull { it.id == newId }
                     }) { Text("Сохранить как новый") }
-                    Button(onClick = {
-                        selected?.let {
-                            GraphDbHelper.deleteGraph(it.id)
-                            graphList = GraphDbHelper.getAllGraphs()
-                            selected = null
-                        }
-                    }, enabled = selected != null,
-                        colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)) {
+                    Button(
+                        onClick = {
+                            selected?.let {
+                                GraphDbHelper.deleteGraph(it.id)
+                                graphList = GraphDbHelper.getAllGraphs()
+                                selected = null
+                            }
+                        }, enabled = selected != null,
+                        colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)
+                    ) {
                         Text("Удалить граф", color = Color.White)
                     }
                     ColorDropdown(current = selectedColor, onSelect = { selectedColor = it })

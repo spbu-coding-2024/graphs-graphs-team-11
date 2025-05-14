@@ -1,4 +1,4 @@
-package common
+package org.spb.project.common
 
 /**
  * Описание вершины графа.

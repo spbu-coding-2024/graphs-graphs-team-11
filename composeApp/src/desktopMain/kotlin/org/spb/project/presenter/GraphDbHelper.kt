@@ -1,7 +1,7 @@
 package org.spb.project.presenter
 
-import common.Graph
-import common.GraphType
+import org.spb.project.common.Graph
+import org.spb.project.common.GraphType
 import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.SQLException
@@ -10,22 +10,25 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 object GraphDbHelper {
-    private const val DB_URL              = "jdbc:sqlite:graphs.db"
-    private const val BUSY_TIMEOUT_MS     = 5000
+    private const val DB_URL = "jdbc:sqlite:graphs.db"
+    private const val BUSY_TIMEOUT_MS = 5000
     private const val DEFAULT_VERTEX_COLOR = 0xFF0000FF.toInt()  // синий
-    private const val DEFAULT_EDGE_COLOR   = 0xFF888888.toInt()  // серый
+    private const val DEFAULT_EDGE_COLOR = 0xFF888888.toInt()  // серый
 
     init {
         // Инициализация схемы
         getConnection().use { conn ->
             conn.createStatement().use { stmt ->
-                stmt.executeUpdate("""
+                stmt.executeUpdate(
+                    """
                     CREATE TABLE IF NOT EXISTS GraphInfo (
                         graph_id INTEGER PRIMARY KEY,
                         type     TEXT    NOT NULL
                     )
-                """.trimIndent())
-                stmt.executeUpdate("""
+                """.trimIndent()
+                )
+                stmt.executeUpdate(
+                    """
                     CREATE TABLE IF NOT EXISTS Vertices (
                         graph_id INTEGER,
                         idx      INTEGER,
@@ -34,8 +37,10 @@ object GraphDbHelper {
                         color    INTEGER,
                         PRIMARY KEY(graph_id, idx)
                     )
-                """.trimIndent())
-                stmt.executeUpdate("""
+                """.trimIndent()
+                )
+                stmt.executeUpdate(
+                    """
                     CREATE TABLE IF NOT EXISTS Edges (
                         graph_id  INTEGER,
                         start_idx INTEGER,
@@ -43,7 +48,8 @@ object GraphDbHelper {
                         weight    INTEGER,
                         color     INTEGER
                     )
-                """.trimIndent())
+                """.trimIndent()
+                )
             }
             // Если пусто — создаём демо-графы 1–4
             getConnection().createStatement().use { stmt ->
@@ -197,7 +203,7 @@ object GraphDbHelper {
                 ps.executeQuery().use { rs ->
                     while (rs.next()) {
                         list += GraphMeta(
-                            id   = rs.getInt("graph_id"),
+                            id = rs.getInt("graph_id"),
                             type = GraphType.valueOf(rs.getString("type"))
                         )
                     }
@@ -220,11 +226,6 @@ object GraphDbHelper {
             }
         }
     }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Демонстрационные графы 1–4:
-    // 1) треугольник, 2) квадрат, 3) окружность, 4) 200 рандомных узлов
-    // ──────────────────────────────────────────────────────────────────────────
 
     private fun populateSampleGraph1() {
         val g = Graph(GraphType.NORMAL)
@@ -254,11 +255,14 @@ object GraphDbHelper {
 
     private fun populateSampleGraph3() {
         val g = Graph(GraphType.WEIGHTED)
-        val cx = 300.0; val cy = 300.0; val r = 200.0; val n = 8
+        val cx = 300.0
+        val cy = 300.0
+        val r = 200.0
+        val n = 8
         repeat(n) { i ->
             val angle = 2 * Math.PI * i / n
-            val x     = cx + r * cos(angle)
-            val y     = cy + r * sin(angle)
+            val x = cx + r * cos(angle)
+            val y = cy + r * sin(angle)
             g.addVertex(x, y, DEFAULT_VERTEX_COLOR)
         }
         for (i in 0 until n) {

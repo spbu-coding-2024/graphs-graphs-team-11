@@ -1,4 +1,4 @@
-package common
+package org.spb.project.common
 
 /**
  * Граф с заранее заданным типом (NORMAL, ORIENTED, WEIGHTED)
@@ -6,10 +6,9 @@ package common
 class Graph(private var typeOfGraph: GraphType) {
 
     private val vertexes = mutableListOf<Vertex>()
-    private val edges    = mutableListOf<MutableList<Edge>>()
+    private val edges = mutableListOf<MutableList<Edge>>()
 
     fun getType(): GraphType = typeOfGraph
-    fun changeType(t: GraphType) { typeOfGraph = t }
 
     /**
      * Добавить вершину.
@@ -19,6 +18,7 @@ class Graph(private var typeOfGraph: GraphType) {
      */
     fun addVertex(x: Double, y: Double, color: Int = 0xFF000000.toInt()) {
         vertexes.add(Vertex(x, y, color))
+        edges.add(mutableListOf())
     }
 
     /**

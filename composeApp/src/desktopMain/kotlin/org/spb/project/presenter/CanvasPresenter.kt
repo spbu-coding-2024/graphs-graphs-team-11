@@ -1,12 +1,11 @@
 package org.spb.project.presenter
 
 import androidx.compose.runtime.*
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntSize
-import common.Edge
-import common.Graph
-import common.GraphType
+import org.spb.project.common.Edge
+import org.spb.project.common.Graph
+import org.spb.project.common.GraphType
 import org.spb.project.model.CircleNode
 
 class CanvasPresenter {
@@ -68,21 +67,40 @@ class CanvasPresenter {
      */
     fun deleteSelectedNode() {
         selectedNodeIndex?.let { idx ->
-            // модель: удалить вершину
-            graph.getVertexes().removeAt(idx)
-            // удалить строку рёбер для этой вершины
-            graph.getEdges().removeAt(idx)
-            // из остальных списков рёбер убрать ссылки и сдвинуть индексы
+            // --- 1) модель: удаляем саму вершину ---
+            if (idx in graph.getVertexes().indices) {
+                graph.getVertexes().removeAt(idx)
+            }
+            // --- 2) модель: удаляем список исходящих рёбер этой вершины ---
+            if (idx in graph.getEdges().indices) {
+                graph.getEdges().removeAt(idx)
+            }
+            // --- 3) модель: пробегаем по всем оставшимся спискам рёбер ---
             graph.getEdges().forEach { list ->
+                // удаляем все рёбра, ведущие в idx
                 list.removeAll { it.vertex == idx }
-                list.forEach { if (it.vertex > idx) it.vertex -= 1 }
+                // теперь все вершины с большим индексом «сдвигаем» на 1
+                for (i in list.indices) {
+                    val e = list[i]
+                    if (e.vertex > idx) {
+                        // создаём новое ребро с уменьшенным vertex
+                        list[i] = Edge(
+                            vertex = e.vertex - 1,
+                            weight = e.weight,
+                            color = e.color
+                        )
+                    }
+                }
             }
 
-            // UI
-            nodesList.removeAt(idx)
+            // --- 4) UI: удаляем узел из списка и сбрасываем выделение ---
+            if (idx in nodesList.indices) {
+                nodesList.removeAt(idx)
+            }
             selectedNodeIndex = null
         }
     }
+
 
     fun paintSelectedNode(color: Int) {
         selectedNodeIndex?.let { idx ->
@@ -146,7 +164,7 @@ class CanvasPresenter {
 
         val minX = pan.x + padding
         val minY = pan.y + padding
-        val maxX = minX + canvasSize.width  / zoom
+        val maxX = minX + canvasSize.width / zoom
         val maxY = minY + canvasSize.height / zoom
 
         val clampedX = candidate.x.coerceIn(minX, maxX)
