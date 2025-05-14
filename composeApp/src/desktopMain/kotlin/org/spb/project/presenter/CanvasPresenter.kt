@@ -1,144 +1,96 @@
 package org.spb.project.presenter
 
-import org.spb.project.model.CircleNode
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.geometry.Offset
 import common.Graph
 import common.GraphType
+import org.spb.project.model.CircleNode
 
-// Презентер для взаимодействия с UI: хранит состояние узлов, масштабирования и панорамирования канвы
+/**
+ * Презентер, хранящий состояние узлов, pan/zoom и синхронизирующий модель ↔ UI ↔ БД.
+ */
 class CanvasPresenter {
+    private var graph by mutableStateOf(Graph(GraphType.NORMAL))
     private val db = GraphDbHelper
 
-    // теперь наблюдаемый список
-    private val circleNodeList = mutableStateListOf<CircleNode>()
-    val circleNodes: List<CircleNode> get() = circleNodeList
+    private val _nodes = mutableStateListOf<CircleNode>()
+    val circleNodes: List<CircleNode> get() = _nodes
 
-    // graph — var, чтобы можно было перезатыкать его при загрузке
-    private var graph: Graph = Graph(GraphType.WEIGHTED)
+    private var activeDragIndex by mutableStateOf<Int?>(null)
+    var zoom by mutableStateOf(1f); private set
+    var pan  by mutableStateOf(Offset.Zero)
 
     init {
-        // при старте сразу пробуем загрузить сохранённое состояние
         loadGraph()
     }
 
-    // Индекс текущего перетаскиваемого узла, или null, если перетаскивание не активно
-    private var activeDragIndex by mutableStateOf<Int?>(null)
-
-    // Текущий масштаб канвы; приватный сеттер, чтобы изменение только через контролируемые методы
-    var zoom by mutableStateOf(1f)
-        private set
-
-    // Смещение канвы (панорама) в мировых координатах
-    var pan by mutableStateOf(Offset.Zero)
-
-    // Добавляет новый узел в центр области (примерная позиция)
-    fun addCircle() {
+    /**
+     * Добавить вершину с заданным ARGB-цветом.
+     * Цвет приходит из UI (selectedColor.toArgb()).
+     */
+    fun addCircle(color: Int) {
         val x = 500
         val y = 800
-                // сначала модель
-            graph.addVertex(x.toDouble(), y.toDouble())
-        // потом UI-список
-        circleNodeList.add(CircleNode(Offset(x.toFloat(), y.toFloat())))
+        // 1) модель
+        graph.addVertex(x.toDouble(), y.toDouble(), color)
+        // 2) UI
+        _nodes.add(CircleNode(Offset(x.toFloat(), y.toFloat()), color = color))
     }
-
-    fun saveGraph(graphId: Int = 1) {
-        // синхронизируем координаты из UI в модель
-        circleNodeList.forEachIndexed { idx, node ->
-            val vertex = graph.getVertexes()[idx]
-            vertex.x = node.offset.x.toDouble()
-            vertex.y = node.offset.y.toDouble()
-        }
-        // сохраняем уже «правильную» модель
-        GraphDbHelper.saveGraph(graph, graphId)
-    }
-
-
-    fun loadGraph(graphId: Int = 1) {
-        // 1) заменяем нашу модель на загруженную
-        graph = GraphDbHelper.loadGraph(graphId)
-
-        // 2) очищаем UI-список и заполняем его из новой модели
-        circleNodeList.clear()
-        graph.getVertexes().forEach { v ->
-            circleNodeList.add(
-                CircleNode(Offset(v.x.toFloat(), v.y.toFloat()))
-            )
-        }
-    }
-
-
-
 
     /**
-     * Начало перетаскивания: определяем, какой узел попал под палец/мышь
-     * pos — экранные координаты события,
-     * padding — отступ внутренней области канвы в пикселях
-     * Возвращаем true, если перетаскивание узла началось
+     * Сохранить граф в БД:
+     * синхронизировать координаты и цвета из UI в модель и вызвать GraphDbHelper.saveGraph.
      */
+    fun saveGraph(graphId: Int = 1) {
+        _nodes.forEachIndexed { idx, node ->
+            val v = graph.getVertexes()[idx]
+            v.x     = node.offset.x.toDouble()
+            v.y     = node.offset.y.toDouble()
+            v.color = node.color
+        }
+        db.saveGraph(graph, graphId)
+    }
+
+    /**
+     * Загрузить граф из БД:
+     * заменить модель, затем заполнить UI-список с учётом цвета.
+     */
+    fun loadGraph(graphId: Int = 1) {
+        graph = db.loadGraph(graphId)
+        _nodes.clear()
+        graph.getVertexes().forEach { v ->
+            _nodes.add(CircleNode(Offset(v.x.toFloat(), v.y.toFloat()), color = v.color))
+        }
+    }
+
+    // === drag & zoom ===
     fun startDrag(pos: Offset, padding: Float): Boolean {
-        // Преобразуем экранные координаты в мировые (с учётом зума, панорамы и отступов)
-        val world = (pos / zoom) + Offset(padding, padding) + pan
-        // Ищем первый узел, расстояние до центра которого меньше радиуса
+        val world = (pos / zoom) + pan + Offset(padding, padding)
         activeDragIndex =
-            circleNodeList.indexOfFirst { (it.offset - world).getDistance() < it.radius }.takeIf { it != -1 }
+            _nodes.indexOfFirst { (it.offset - world).getDistance() < it.radius }
+                .takeIf { it != -1 }
         return activeDragIndex != null
     }
 
-    /**
-     * Обработка перемещения во время перетаскивания
-     * delta — изменение позиции курсора в экранных координатах
-     */
     fun onDrag(delta: Offset) {
         activeDragIndex?.let { idx ->
-            // Если перетаскиваем узел, двигаем его в мировых координатах
-            val node = circleNodeList[idx]
+            val node = _nodes[idx]
             val newOff = node.offset + (delta / zoom)
-            circleNodeList[idx] = node.copy(offset = newOff)
+            _nodes[idx] = node.copy(offset = newOff)
         } ?: run {
-            // Иначе двигаем саму панораму канвы
             pan -= delta / zoom
         }
     }
 
-    // Завершаем любое активное перетаскивание
     fun endDrag() {
         activeDragIndex = null
     }
 
-    /**
-     * Изменяем масштаб канвы с фокусом на указанной точке
-     * factor — множитель масштабирования,
-     * focus — точка в экранных координатах, вокруг которой происходит зум
-     */
     fun zoomBy(factor: Float, focus: Offset) {
-        val oldZoom = zoom
-        // Ограничиваем масштаб, чтобы он не стал слишком маленьким или слишком большим
-        val newZoom = (oldZoom * factor).coerceIn(0.1f, 5f)
-        // Корректируем панораму так, чтобы фокус оставался на месте
-        pan += (focus / oldZoom) - (focus / newZoom)
-        zoom = newZoom
-    }
-
-
-    private fun Graph.toCircleNodeList(): SnapshotStateList<CircleNode> {
-        val list = mutableStateListOf<CircleNode>()
-        // Проходим по всем вершинам и создаём CircleNode из их координат
-        this.getVertexes().forEach { vertex ->
-            // vertex.x и vertex.y у вас Double, а Offset ожидает Float
-            list.add(
-                CircleNode(
-                    Offset(
-                        vertex.x.toFloat(),
-                        vertex.y.toFloat()
-                    )
-                )
-            )
-        }
-        return list
+        val old = zoom
+        val new = (old * factor).coerceIn(0.1f, 5f)
+        pan += (focus / old) - (focus / new)
+        zoom = new
     }
 }
