@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.material.*
 import androidx.compose.runtime.*
@@ -86,19 +87,34 @@ fun GraphManagerPanel(presenter: CanvasPresenter) {
     }
 }
 
+/**
+ * Canvas с поддержкой:
+ * - выбор вершины по клику
+ * - отрисовки рёбер и вершин на основе модели
+ * - hover-эффекта (увеличение)
+ * - перетаскивания отдельных вершин и панорамы
+ * - зума жестами и колесом мыши
+ */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun DraggableCanvasView(
     presenter: CanvasPresenter,
-    nodeColor: Color,               // выбранный цвет, передаётся в GraphScreen → onAdd
     modifier: Modifier = Modifier,
     paddingDp: Dp = 50.dp
 ) {
     val nodes = presenter.circleNodes
-    var hoverIndex  by remember { mutableStateOf<Int?>(null) }
-    var draggingIdx by remember { mutableStateOf<Int?>(null) }
+    val edges = presenter.edges
+    var hoverIndex by remember { mutableStateOf<Int?>(null) }
+    var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    val selectedIndex by rememberUpdatedState(presenter.selectedNodeIndex)
 
-    val animZoom    by animateFloatAsState(targetValue = presenter.zoom, animationSpec = tween(200))
+    val zoom by rememberUpdatedState(presenter.zoom)
+    val animatedZoom by animateFloatAsState(
+        targetValue = zoom,
+        animationSpec = tween(durationMillis = 200)
+    )
+
+    // Масштаб hover
     val hoverScales = nodes.mapIndexed { idx, _ ->
         animateFloatAsState(
             targetValue = if (idx == hoverIndex) 1.2f else 1f,
@@ -106,103 +122,113 @@ fun DraggableCanvasView(
         ).value
     }
 
-    val density  = LocalDensity.current
-    val paddingPx= with(density) { paddingDp.toPx() }
+    val density = LocalDensity.current
+    val paddingPx = with(density) { paddingDp.toPx() }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
-    Canvas(modifier = modifier
-        .onSizeChanged { canvasSize = it }
-        .pointerInput(nodes) {
-            detectDragGestures(
-                onDragStart = { down ->
-                    val world = (down / animZoom) + presenter.pan + Offset(paddingPx, paddingPx)
-                    draggingIdx = nodes.indexOfFirst { (it.offset - world).getDistance() < it.radius }
+    Canvas(
+        modifier = modifier
+            .onSizeChanged { canvasSize = it }
+            // Тап для выбора вершины
+            .pointerInput(nodes) {
+                detectTapGestures { tap ->
+                    val world = (tap / animatedZoom) + presenter.pan + Offset(paddingPx, paddingPx)
+                    val idx = nodes.indexOfFirst { (it.offset - world).getDistance() < it.radius }
                         .takeIf { it != -1 }
-                    presenter.startDrag(down, paddingPx)
-                },
-                onDrag = { change, delta ->
-                    change.consume()
-                    if (draggingIdx != null) {
-                        val idx = draggingIdx!!
-                        val old = nodes[idx].offset
-                        val worldDelta = delta / animZoom
-                        val candidate = old + worldDelta
-
-                        val minX = presenter.pan.x + paddingPx
-                        val minY = presenter.pan.y + paddingPx
-                        val maxX = minX + canvasSize.width  / animZoom
-                        val maxY = minY + canvasSize.height / animZoom
-
-                        val clampedX = candidate.x.coerceIn(minX, maxX)
-                        val clampedY = candidate.y.coerceIn(minY, maxY)
-                        val deltaClamped = (Offset(clampedX, clampedY) - old)
-
-                        presenter.onDrag(deltaClamped * animZoom)
-                    } else {
-                        presenter.onDrag(delta)
-                    }
-                },
-                onDragEnd = {
-                    presenter.endDrag()
-                    draggingIdx = null
+                    presenter.selectNode(idx)
                 }
-            )
-        }
-        .pointerInput(Unit) {
-            detectTransformGestures { centroid, pan, zoomChange, _ ->
-                presenter.zoomBy(zoomChange, centroid)
-                presenter.onDrag(pan)
             }
-        }
-        .pointerInput(Unit) {
-            awaitPointerEventScope {
-                while (true) {
-                    val ev = awaitPointerEvent()
-                    if (ev.type == PointerEventType.Scroll) {
-                        ev.changes.forEach { ch ->
-                            val factor = 1f + ch.scrollDelta.y * 0.01f
-                            presenter.zoomBy(factor, ch.position)
-                            ch.consume()
+            // Drag для вершин или панорамы
+            .pointerInput(nodes) {
+                detectDragGestures(
+                    onDragStart = { down ->
+                        val world = (down / animatedZoom) + presenter.pan + Offset(paddingPx, paddingPx)
+                        draggingIndex = nodes.indexOfFirst { (it.offset - world).getDistance() < it.radius }
+                            .takeIf { it != -1 }
+                        presenter.startDrag(down, paddingPx)
+                    },
+                    onDrag = { change, delta ->
+                        change.consume()
+                        if (draggingIndex != null) {
+                            presenter.onDragForNode(draggingIndex!!, delta, paddingPx, canvasSize, animatedZoom)
+                        } else {
+                            presenter.onDrag(delta)
+                        }
+                    },
+                    onDragEnd = {
+                        presenter.endDrag()
+                        draggingIndex = null
+                    }
+                )
+            }
+            // Pinch zoom and pan
+            .pointerInput(Unit) {
+                detectTransformGestures { centroid, panDelta, zoomChange, _ ->
+                    presenter.zoomBy(zoomChange, centroid)
+                    presenter.onDrag(panDelta)
+                }
+            }
+            // Scroll zoom
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        if (event.type == PointerEventType.Scroll) {
+                            event.changes.forEach { ch ->
+                                val factor = 1f + ch.scrollDelta.y * 0.01f
+                                presenter.zoomBy(factor, ch.position)
+                                ch.consume()
+                            }
                         }
                     }
                 }
             }
-        }
-        .pointerMoveFilter(
-            onMove = { pos ->
-                val world = (pos / animZoom) + presenter.pan + Offset(paddingPx, paddingPx)
-                hoverIndex = nodes.indexOfFirst { (it.offset - world).getDistance() < it.radius }
-                    .takeIf { it != -1 }
-                false
-            },
-            onExit = {
-                hoverIndex = null
-                false
-            }
-        )
+            // Hover detection
+            .pointerMoveFilter(
+                onMove = { pos ->
+                    val world = (pos / animatedZoom) + presenter.pan + Offset(paddingPx, paddingPx)
+                    hoverIndex = nodes.indexOfFirst { (it.offset - world).getDistance() < it.radius }
+                        .takeIf { it != -1 }
+                    false
+                },
+                onExit = {
+                    hoverIndex = null
+                    false
+                }
+            )
     ) {
-        val z = animZoom
+        val z = animatedZoom
         val base = presenter.pan + Offset(paddingPx, paddingPx)
 
-        // 1) Рёбра
-        for (i in 0 until nodes.size - 1) {
-            drawLine(
-                color       = Color.Gray,
-                start       = (nodes[i].offset - base) * z,
-                end         = (nodes[i + 1].offset - base) * z,
-                strokeWidth = 2f * z
-            )
+        // 1) Рисуем рёбра по структуре graph.getEdges()
+        edges.forEachIndexed { i, list ->
+            val from = (nodes[i].offset - base) * z
+            list.forEach { e ->
+                val to = (nodes[e.vertex].offset - base) * z
+                drawLine(
+                    color = Color(e.color),
+                    start = from,
+                    end = to,
+                    strokeWidth = 2f * z
+                )
+            }
         }
-        // 2) Вершины
+
+        // 2) Рисуем вершины; подсвечиваем выбранную
         nodes.forEachIndexed { idx, node ->
+            val drawColor = if (idx == selectedIndex) Color.Yellow else Color(node.color)
             drawCircle(
-                color  = Color(node.color),
+                color = drawColor,
                 radius = node.radius * z * hoverScales[idx],
                 center = (node.offset - base) * z
             )
         }
     }
 }
+
+
+
+
 @Composable
 fun GraphScreen(presenter: CanvasPresenter) {
     var graphList     by remember { mutableStateOf<List<GraphMeta>>(emptyList()) }
@@ -220,30 +246,15 @@ fun GraphScreen(presenter: CanvasPresenter) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ── Панель управления ──
         Card(
             shape = RoundedCornerShape(8.dp),
             elevation = 4.dp,
-            backgroundColor = MaterialTheme.colors.surface,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
-                Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Кнопки Add/Zoom/Save/PaintAll
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { presenter.addCircle(selectedColor.toArgb()) }) {
                         Text("Добавить вершину")
-                    }
-                    Button(onClick = { presenter.zoomBy(1.1f, Offset.Zero) }) {
-                        Text("+")
-                    }
-                    Button(onClick = { presenter.zoomBy(0.9f, Offset.Zero) }) {
-                        Text("–")
                     }
                     Button(onClick = { presenter.saveGraph() }) {
                         Text("Сохранить")
@@ -251,90 +262,64 @@ fun GraphScreen(presenter: CanvasPresenter) {
                     Button(onClick = { presenter.paintAll(selectedColor.toArgb()) }) {
                         Text("Окрасить все")
                     }
+                    Button(onClick = { presenter.paintSelectedNode(selectedColor.toArgb()) },
+                        enabled = presenter.selectedNodeIndex != null) {
+                        Text("Окрасить выбранную")
+                    }
+                    Button(onClick = { presenter.deleteSelectedNode() },
+                        enabled = presenter.selectedNodeIndex != null,
+                        colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)) {
+                        Text("Удалить выбранную", color = Color.White)
+                    }
                 }
 
-                // Менеджер графов: выбор, загрузка, сохранение, удаление
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Dropdown выбор графа
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box {
                         Button(onClick = { expanded = true }) {
-                            Text(selected?.let { "Граф #${it.id} (${it.type})" } ?: "Выбрать граф")
+                            Text(selected?.let { "Граф #${it.id}" } ?: "Выбрать граф")
                         }
-                        DropdownMenu(
-                            expanded = expanded,
-                            onDismissRequest = { expanded = false }
-                        ) {
+                        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                             graphList.forEach { meta ->
                                 DropdownMenuItem(onClick = {
-                                    selected = meta
-                                    expanded = false
-                                }) {
-                                    Text("Граф #${meta.id} (${meta.type})")
-                                }
+                                    selected = meta; expanded = false
+                                }) { Text("Граф #${meta.id} (${meta.type})") }
                             }
                         }
                     }
-
-                    // Загрузить
-                    Button(
-                        onClick = { selected?.let { presenter.loadGraph(it.id) } },
-                        enabled = selected != null
-                    ) { Text("Загрузить") }
-
-                    // Сохранить как новый
+                    Button(onClick = { selected?.let { presenter.loadGraph(it.id) } },
+                        enabled = selected != null) {
+                        Text("Загрузить")
+                    }
                     Button(onClick = {
                         val newId = GraphDbHelper.getNextGraphId()
                         presenter.saveGraph(newId)
                         graphList = GraphDbHelper.getAllGraphs()
                         selected = graphList.firstOrNull { it.id == newId }
                     }) { Text("Сохранить как новый") }
-
-                    // Удалить
-                    Button(
-                        onClick = {
-                            selected?.let {
-                                GraphDbHelper.deleteGraph(it.id)
-                                graphList = GraphDbHelper.getAllGraphs()
-                                selected = null
-                            }
-                        },
-                        enabled = selected != null,
-                        colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFFD32F2F))
-                    ) {
-                        Text("Удалить", color = Color.White)
+                    Button(onClick = {
+                        selected?.let {
+                            GraphDbHelper.deleteGraph(it.id)
+                            graphList = GraphDbHelper.getAllGraphs()
+                            selected = null
+                        }
+                    }, enabled = selected != null,
+                        colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)) {
+                        Text("Удалить граф", color = Color.White)
                     }
+                    ColorDropdown(current = selectedColor, onSelect = { selectedColor = it })
                 }
-
-                // Dropdown выбора цвета
-                ColorDropdown(
-                    current  = selectedColor,
-                    onSelect = { selectedColor = it }
-                )
             }
         }
 
-        // ── Canvas ──
         Card(
             shape = RoundedCornerShape(8.dp),
             elevation = 4.dp,
-            backgroundColor = Color(0xFFFAFAFA),
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
         ) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFFEFEFEF))
-            ) {
-                DraggableCanvasView(
-                    presenter = presenter,
-                    nodeColor = selectedColor,
-                    modifier  = Modifier.fillMaxSize()
-                )
+            Box(Modifier.background(Color(0xFFEFEFEF))) {
+                DraggableCanvasView(presenter = presenter, modifier = Modifier.fillMaxSize())
             }
         }
     }

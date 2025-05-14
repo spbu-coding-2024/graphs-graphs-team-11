@@ -3,92 +3,157 @@ package org.spb.project.presenter
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.IntSize
+import common.Edge
 import common.Graph
 import common.GraphType
 import org.spb.project.model.CircleNode
 
-/**
- * Презентер, хранящий состояние узлов, pan/zoom и синхронизирующий модель ↔ UI ↔ БД.
- */
 class CanvasPresenter {
     private var graph by mutableStateOf(Graph(GraphType.NORMAL))
     private val db = GraphDbHelper
 
-    private val _nodes = mutableStateListOf<CircleNode>()
-    val circleNodes: List<CircleNode> get() = _nodes
+    // UI-список вершин
+    private val nodesList = mutableStateListOf<CircleNode>()
+    val circleNodes: List<CircleNode> get() = nodesList
+
+    // Список рёбер из модели
+    val edges: List<List<Edge>> get() = graph.getEdges()
+
+    // Текущий выбранный узел (или null)
+    var selectedNodeIndex by mutableStateOf<Int?>(null)
+        private set
 
     private var activeDragIndex by mutableStateOf<Int?>(null)
     var zoom by mutableStateOf(1f); private set
-    var pan  by mutableStateOf(Offset.Zero)
+    var pan by mutableStateOf(Offset.Zero); private set
 
     init {
         loadGraph()
     }
 
-    /**
-     * Добавить вершину с заданным ARGB-цветом.
-     * Цвет приходит из UI (selectedColor.toArgb()).
-     */
-    fun addCircle(color: Int) {
-        val x = 500
-        val y = 800
-        graph.addVertex(x.toDouble(), y.toDouble(), color)
-        _nodes.add(CircleNode(Offset(x.toFloat(), y.toFloat()), color = color))
+    fun selectNode(index: Int?) {
+        selectedNodeIndex = index
     }
 
     /**
-     * Перекрасить все вершины в указанный цвет.
+     * Добавить вершину.
+     * Если узел выбран, добавляем её и соединяем с ним.
      */
-    fun paintAll(color: Int) {
-        // Обновляем сразу UI-список
-        _nodes.replaceAll { node ->
-            node.copy(color = color)
+    fun addCircle(color: Int) {
+        val pos = if (selectedNodeIndex != null) {
+            val sel = nodesList[selectedNodeIndex!!]
+            sel.offset + Offset(50f, 50f)
+        } else {
+            Offset(500f, 800f)
+        }
+
+        // 1) модель
+        graph.addVertex(pos.x.toDouble(), pos.y.toDouble(), color)
+        val newIdx = graph.getVertexes().lastIndex
+
+        // если был выбран узел — добавить ребро
+        selectedNodeIndex?.let { selIdx ->
+            // вес = 1, цвет ребра можно по умолчанию
+            val edgeColor = 0xFF888888.toInt()
+            graph.addEdge(selIdx, newIdx, 1, edgeColor)
+        }
+
+        // 2) UI
+        nodesList.add(CircleNode(pos, color = color))
+    }
+
+    /**
+     * Удалить выбранный узел и все инцидентные рёбра.
+     */
+    fun deleteSelectedNode() {
+        selectedNodeIndex?.let { idx ->
+            // модель: удалить вершину
+            graph.getVertexes().removeAt(idx)
+            // удалить строку рёбер для этой вершины
+            graph.getEdges().removeAt(idx)
+            // из остальных списков рёбер убрать ссылки и сдвинуть индексы
+            graph.getEdges().forEach { list ->
+                list.removeAll { it.vertex == idx }
+                list.forEach { if (it.vertex > idx) it.vertex -= 1 }
+            }
+
+            // UI
+            nodesList.removeAt(idx)
+            selectedNodeIndex = null
         }
     }
 
-    /**
-     * Сохранить граф в БД:
-     * синхронизировать координаты и цвета из UI в модель и вызвать GraphDbHelper.saveGraph.
-     */
+    fun paintSelectedNode(color: Int) {
+        selectedNodeIndex?.let { idx ->
+            nodesList[idx] = nodesList[idx].copy(color = color)
+        }
+    }
+
+    fun paintAll(color: Int) {
+        nodesList.replaceAll { it.copy(color = color) }
+    }
+
     fun saveGraph(graphId: Int = 1) {
-        _nodes.forEachIndexed { idx, node ->
-            val v = graph.getVertexes()[idx]
-            v.x     = node.offset.x.toDouble()
-            v.y     = node.offset.y.toDouble()
+        nodesList.forEachIndexed { i, node ->
+            val v = graph.getVertexes()[i]
+            v.x = node.offset.x.toDouble()
+            v.y = node.offset.y.toDouble()
             v.color = node.color
         }
         db.saveGraph(graph, graphId)
     }
 
-    /**
-     * Загрузить граф из БД:
-     * заменить модель, затем заполнить UI-список с учётом цвета.
-     */
     fun loadGraph(graphId: Int = 1) {
         graph = db.loadGraph(graphId)
-        _nodes.clear()
+        nodesList.clear()
         graph.getVertexes().forEach { v ->
-            _nodes.add(CircleNode(Offset(v.x.toFloat(), v.y.toFloat()), color = v.color))
+            nodesList.add(CircleNode(Offset(v.x.toFloat(), v.y.toFloat()), color = v.color))
         }
+        selectedNodeIndex = null
     }
 
-    // === drag & zoom ===
+    /**
+     * Начало перетаскивания узла/канвы.
+     */
     fun startDrag(pos: Offset, padding: Float): Boolean {
         val world = (pos / zoom) + pan + Offset(padding, padding)
-        activeDragIndex =
-            _nodes.indexOfFirst { (it.offset - world).getDistance() < it.radius }
-                .takeIf { it != -1 }
+        activeDragIndex = nodesList.indexOfFirst { (it.offset - world).getDistance() < it.radius }
+            .takeIf { it != -1 }
         return activeDragIndex != null
     }
 
+    /**
+     * Перетаскивание — либо конкретный узел, либо канвас.
+     */
     fun onDrag(delta: Offset) {
         activeDragIndex?.let { idx ->
-            val node = _nodes[idx]
-            val newOff = node.offset + (delta / zoom)
-            _nodes[idx] = node.copy(offset = newOff)
+            // двигаем вершину
+            nodesList[idx] = nodesList[idx].copy(offset = nodesList[idx].offset + (delta / zoom))
         } ?: run {
+            // двигаем канвас
             pan -= delta / zoom
         }
+    }
+
+    /**
+     * Альтернативный вариант: при ограничениях границ, если нужен.
+     */
+    fun onDragForNode(idx: Int, delta: Offset, padding: Float, canvasSize: IntSize, zoom: Float) {
+        val old = nodesList[idx].offset
+        val worldDelta = delta / zoom
+        val candidate = old + worldDelta
+
+        val minX = pan.x + padding
+        val minY = pan.y + padding
+        val maxX = minX + canvasSize.width  / zoom
+        val maxY = minY + canvasSize.height / zoom
+
+        val clampedX = candidate.x.coerceIn(minX, maxX)
+        val clampedY = candidate.y.coerceIn(minY, maxY)
+        val deltaClamped = Offset(clampedX, clampedY) - old
+
+        onDrag(deltaClamped * zoom)
     }
 
     fun endDrag() {
@@ -97,8 +162,8 @@ class CanvasPresenter {
 
     fun zoomBy(factor: Float, focus: Offset) {
         val old = zoom
-        val new = (old * factor).coerceIn(0.1f, 5f)
-        pan += (focus / old) - (focus / new)
-        zoom = new
+        val newZoom = (old * factor).coerceIn(0.1f, 5f)
+        pan += (focus / old) - (focus / newZoom)
+        zoom = newZoom
     }
 }
