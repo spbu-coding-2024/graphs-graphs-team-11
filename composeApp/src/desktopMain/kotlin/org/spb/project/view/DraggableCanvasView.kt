@@ -205,9 +205,9 @@ fun DraggableCanvasView(
 }
 @Composable
 fun GraphScreen(presenter: CanvasPresenter) {
-    var graphList   by remember { mutableStateOf<List<GraphMeta>>(emptyList()) }
-    var selected    by remember { mutableStateOf<GraphMeta?>(null) }
-    var expanded    by remember { mutableStateOf(false) }
+    var graphList     by remember { mutableStateOf<List<GraphMeta>>(emptyList()) }
+    var selected      by remember { mutableStateOf<GraphMeta?>(null) }
+    var expanded      by remember { mutableStateOf(false) }
     var selectedColor by remember { mutableStateOf(Color.Blue) }
 
     LaunchedEffect(Unit) {
@@ -231,7 +231,7 @@ fun GraphScreen(presenter: CanvasPresenter) {
                 Modifier.padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Кнопки Add/Zoom/Save
+                // Кнопки Add/Zoom/Save/PaintAll
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -239,9 +239,18 @@ fun GraphScreen(presenter: CanvasPresenter) {
                     Button(onClick = { presenter.addCircle(selectedColor.toArgb()) }) {
                         Text("Добавить вершину")
                     }
-                    Button(onClick = { presenter.zoomBy(1.1f, Offset.Zero) }) { Text("+") }
-                    Button(onClick = { presenter.zoomBy(0.9f, Offset.Zero) }) { Text("–") }
-                    Button(onClick = { presenter.saveGraph() }) { Text("Сохранить") }
+                    Button(onClick = { presenter.zoomBy(1.1f, Offset.Zero) }) {
+                        Text("+")
+                    }
+                    Button(onClick = { presenter.zoomBy(0.9f, Offset.Zero) }) {
+                        Text("–")
+                    }
+                    Button(onClick = { presenter.saveGraph() }) {
+                        Text("Сохранить")
+                    }
+                    Button(onClick = { presenter.paintAll(selectedColor.toArgb()) }) {
+                        Text("Окрасить все")
+                    }
                 }
 
                 // Менеджер графов: выбор, загрузка, сохранение, удаление
@@ -271,11 +280,7 @@ fun GraphScreen(presenter: CanvasPresenter) {
 
                     // Загрузить
                     Button(
-                        onClick = {
-                            selected?.let {
-                                presenter.loadGraph(it.id)
-                            }
-                        },
+                        onClick = { selected?.let { presenter.loadGraph(it.id) } },
                         enabled = selected != null
                     ) { Text("Загрузить") }
 
@@ -287,7 +292,7 @@ fun GraphScreen(presenter: CanvasPresenter) {
                         selected = graphList.firstOrNull { it.id == newId }
                     }) { Text("Сохранить как новый") }
 
-                    // *** Новая кнопка Удалить ***
+                    // Удалить
                     Button(
                         onClick = {
                             selected?.let {

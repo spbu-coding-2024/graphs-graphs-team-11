@@ -32,10 +32,18 @@ class CanvasPresenter {
     fun addCircle(color: Int) {
         val x = 500
         val y = 800
-        // 1) модель
         graph.addVertex(x.toDouble(), y.toDouble(), color)
-        // 2) UI
         _nodes.add(CircleNode(Offset(x.toFloat(), y.toFloat()), color = color))
+    }
+
+    /**
+     * Перекрасить все вершины в указанный цвет.
+     */
+    fun paintAll(color: Int) {
+        // Обновляем сразу UI-список
+        _nodes.replaceAll { node ->
+            node.copy(color = color)
+        }
     }
 
     /**
