@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.forEachGesture
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -102,21 +103,18 @@ fun DraggableCanvasView(
             }
             // Pinch zoom and pan
             .pointerInput(Unit) {
-                detectTransformGestures { centroid, panDelta, zoomChange, _ ->
-                    presenter.zoomBy(zoomChange, centroid)
-                    presenter.onDrag(panDelta)
-                }
-            }
-            // Scroll zoom
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        if (event.type == PointerEventType.Scroll) {
-                            event.changes.forEach { ch ->
-                                val factor = 1f + ch.scrollDelta.y * 0.01f
-                                presenter.zoomBy(factor, ch.position)
-                                ch.consume()
+                forEachGesture {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val rawScroll = event.changes.firstOrNull()?.scrollDelta?.y ?: 0f
+                            if (rawScroll != 0f) {
+                                // Инвертируем исходный скролл, чтобы мышь и тачпад вели себя одинаково
+                                val scroll = -rawScroll
+                                // Положительный scroll => зум-ин, отрицательный => зум-аут
+                                val factor = if (scroll > 0f) 1f + scroll / 100f else 1f / (1f + (-scroll / 100f))
+                                presenter.zoomBy(factor, event.changes.first().position)
+                                event.changes.forEach { it.consume() }
                             }
                         }
                     }
