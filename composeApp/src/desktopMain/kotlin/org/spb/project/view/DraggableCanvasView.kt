@@ -253,6 +253,14 @@ fun GraphScreen(presenter: CanvasPresenter) {
                     }
                     ColorDropdown(current = selectedColor, onSelect = { selectedColor = it })
                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { presenter.applyForceAtlas2Layout() }) {
+                        Text("Применить ForceAtlas2")
+                    }
+                    Button(onClick = { presenter.highlightStronglyConnectedComponents() }) {
+                        Text("Выделить SCC")
+                    }
+                }
             }
         }
 
