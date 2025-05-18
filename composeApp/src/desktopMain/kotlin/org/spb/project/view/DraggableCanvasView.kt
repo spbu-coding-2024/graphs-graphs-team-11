@@ -16,6 +16,8 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -23,9 +25,14 @@ import androidx.compose.ui.input.pointer.pointerMoveFilter
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.*
+import org.spb.project.common.GraphType
 import org.spb.project.presenter.CanvasPresenter
 import org.spb.project.presenter.GraphDbHelper
 import org.spb.project.presenter.GraphMeta
+import kotlin.math.PI
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Canvas с поддержкой:
@@ -69,7 +76,6 @@ fun DraggableCanvasView(
     Canvas(
         modifier = modifier
             .onSizeChanged { canvasSize = it }
-            // Тап для выбора вершины
             .pointerInput(nodes) {
                 detectTapGestures { tap ->
                     val world = (tap / animatedZoom) + presenter.pan + Offset(paddingPx, paddingPx)
@@ -78,7 +84,6 @@ fun DraggableCanvasView(
                     presenter.selectNode(idx)
                 }
             }
-            // Drag для вершин или панорамы
             .pointerInput(nodes) {
                 detectDragGestures(
                     onDragStart = { down ->
@@ -89,11 +94,14 @@ fun DraggableCanvasView(
                     },
                     onDrag = { change, delta ->
                         change.consume()
-                        if (draggingIndex != null) {
-                            presenter.onDragForNode(draggingIndex!!, delta, paddingPx, canvasSize, animatedZoom)
-                        } else {
-                            presenter.onDrag(delta)
-                        }
+                        if (draggingIndex != null) presenter.onDragForNode(
+                            draggingIndex!!,
+                            delta,
+                            paddingPx,
+                            canvasSize,
+                            animatedZoom
+                        )
+                        else presenter.onDrag(delta)
                     },
                     onDragEnd = {
                         presenter.endDrag()
@@ -101,7 +109,6 @@ fun DraggableCanvasView(
                     }
                 )
             }
-            // Pinch zoom and pan
             .pointerInput(Unit) {
                 forEachGesture {
                     awaitPointerEventScope {
@@ -109,9 +116,7 @@ fun DraggableCanvasView(
                             val event = awaitPointerEvent()
                             val rawScroll = event.changes.firstOrNull()?.scrollDelta?.y ?: 0f
                             if (rawScroll != 0f) {
-                                // Инвертируем исходный скролл, чтобы мышь и тачпад вели себя одинаково
                                 val scroll = -rawScroll
-                                // Положительный scroll => зум-ин, отрицательный => зум-аут
                                 val factor = if (scroll > 0f) 1f + scroll / 100f else 1f / (1f + (-scroll / 100f))
                                 presenter.zoomBy(factor, event.changes.first().position)
                                 event.changes.forEach { it.consume() }
@@ -120,7 +125,6 @@ fun DraggableCanvasView(
                     }
                 }
             }
-            // Hover detection
             .pointerMoveFilter(
                 onMove = { pos ->
                     val world = (pos / animatedZoom) + presenter.pan + Offset(paddingPx, paddingPx)
@@ -136,8 +140,12 @@ fun DraggableCanvasView(
     ) {
         val z = animatedZoom
         val base = presenter.pan + Offset(paddingPx, paddingPx)
+        val graphType = presenter.graphType
 
-        // 1) Рисуем рёбра по структуре graph.getEdges()
+        // Список для "головок" стрелок
+        val arrowHeads = mutableListOf<Pair<Path, Color>>()
+
+        // 1) Рисуем рёбра и собираем стрелочные головки всего для ORIENTED
         edges.forEachIndexed { i, list ->
             val from = (nodes[i].offset - base) * z
             list.forEach { e ->
@@ -148,10 +156,28 @@ fun DraggableCanvasView(
                     end = to,
                     strokeWidth = 2f * z
                 )
+                if (graphType == GraphType.ORIENTED) {
+                    val angle = atan2(to.y - from.y, to.x - from.x)
+                    val arrowSize = 10f * z
+                    val arrowAngle = (PI / 6).toFloat()
+                    val p = Path().apply {
+                        moveTo(to.x, to.y)
+                        lineTo(
+                            to.x - arrowSize * cos(angle - arrowAngle),
+                            to.y - arrowSize * sin(angle - arrowAngle)
+                        )
+                        moveTo(to.x, to.y)
+                        lineTo(
+                            to.x - arrowSize * cos(angle + arrowAngle),
+                            to.y - arrowSize * sin(angle + arrowAngle)
+                        )
+                    }
+                    arrowHeads += p to Color(e.color)
+                }
             }
         }
 
-        // 2) Рисуем вершины; подсвечиваем выбранную
+        // 2) Рисуем вершины поверх рёбер
         nodes.forEachIndexed { idx, node ->
             val drawColor = if (idx == selectedIndex) Color.Yellow else Color(node.color)
             drawCircle(
@@ -159,6 +185,17 @@ fun DraggableCanvasView(
                 radius = node.radius * z * hoverScales[idx],
                 center = (node.offset - base) * z
             )
+        }
+
+        // 3) Отрисовываем стрелочные головки поверх вершин (только ORIENTED)
+        if (graphType == GraphType.ORIENTED) {
+            arrowHeads.forEach { (path, color) ->
+                drawPath(
+                    path = path,
+                    color = color,
+                    style = Stroke(width = 2f * z)
+                )
+            }
         }
     }
 }

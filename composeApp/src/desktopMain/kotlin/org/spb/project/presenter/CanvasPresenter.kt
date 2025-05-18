@@ -15,6 +15,8 @@ class CanvasPresenter {
     private val db = GraphDbHelper
     private val forceAtlas = ForceAtlas2Layout()
     private val sccFinder = StronglyConnectedComponents()
+    val graphType: GraphType
+        get() = graph.getType()
 
     // UI-список вершин
     private val nodesList = mutableStateListOf<CircleNode>()
