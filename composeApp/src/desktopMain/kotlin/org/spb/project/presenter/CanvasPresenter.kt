@@ -209,6 +209,8 @@ class CanvasPresenter {
      * Выделить сильносвязные компоненты: покрасить узлы в случайные цвета по компонентам.
      */
     fun highlightStronglyConnectedComponents() {
+        // Если граф не ориентированный — SCC неприменим
+        if (graph.getType() != GraphType.ORIENTED) return
         val comps = sccFinder.findComponents(graph)
         val seed = Random(0)
         val colors = comps.map { Random(seed.nextInt()).nextInt() or 0xFF000000.toInt() }
