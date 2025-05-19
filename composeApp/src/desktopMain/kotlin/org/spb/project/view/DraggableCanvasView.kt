@@ -258,7 +258,9 @@ fun GraphScreen(presenter: CanvasPresenter) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { presenter.addCircle(selectedColor.toArgb()) }) { Text("Добавить вершину") }
-                    Button(onClick = { presenter.saveGraph() }) { Text("Сохранить") }
+                    Button(onClick = {
+                        selected?.let { presenter.saveGraph(it.id) }
+                    }, enabled = selected != null) { Text("Сохранить") }
                     Button(onClick = { presenter.paintAll(selectedColor.toArgb()) }) { Text("Окрасить все") }
                     Button(onClick = { presenter.paintSelectedNode(selectedColor.toArgb()) }, enabled = presenter.selectedNodeIndex != null) { Text("Окрасить выбранную") }
                     Button(onClick = { presenter.deleteSelectedNode() }, enabled = presenter.selectedNodeIndex != null, colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)) { Text("Удалить выбранную", color = Color.White) }
