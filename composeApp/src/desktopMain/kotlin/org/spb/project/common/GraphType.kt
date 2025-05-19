@@ -1,8 +1,8 @@
 package org.spb.project.common
 
 /*
-    Типы графа: Обычный, Ориентированный, Взвешенный
+    Типы графа: Обычный, Ориентированный, Взвешенный ориентированный, Взвешенный неориентированный
 */
 enum class GraphType {
-    NORMAL, ORIENTED, WEIGHTED
+    NON_ORIENTED, ORIENTED, WEIGHTED_ORIENTED, WEIGHTED_NON_ORIENTED
 }

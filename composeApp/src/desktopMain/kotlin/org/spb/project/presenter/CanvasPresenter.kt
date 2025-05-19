@@ -11,7 +11,7 @@ import org.spb.project.model.CircleNode
 import kotlin.random.Random
 
 class CanvasPresenter {
-    private var graph by mutableStateOf(Graph(GraphType.NORMAL))
+    private var graph by mutableStateOf(Graph(GraphType.NON_ORIENTED))
     private val db = GraphDbHelper
     private val forceAtlas = ForceAtlas2Layout()
     private val sccFinder = StronglyConnectedComponents()
@@ -209,6 +209,8 @@ class CanvasPresenter {
      * Выделить сильносвязные компоненты: покрасить узлы в случайные цвета по компонентам.
      */
     fun highlightStronglyConnectedComponents() {
+        // Если граф не ориентированный — SCC неприменим
+        if (graph.getType() != GraphType.ORIENTED) return
         val comps = sccFinder.findComponents(graph)
         val seed = Random(0)
         val colors = comps.map { Random(seed.nextInt()).nextInt() or 0xFF000000.toInt() }

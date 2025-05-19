@@ -142,7 +142,7 @@ object GraphDbHelper {
             ).use { ps ->
                 ps.setInt(1, graphId)
                 ps.executeQuery().use { rs ->
-                    if (rs.next()) rs.getString("type") else GraphType.NORMAL.name
+                    if (rs.next()) rs.getString("type") else GraphType.NON_ORIENTED.name
                 }
             }
             graph = Graph(GraphType.valueOf(typeName))
@@ -234,7 +234,7 @@ object GraphDbHelper {
     }
 
     private fun populateSampleGraph1() {
-        val g = Graph(GraphType.NORMAL)
+        val g = Graph(GraphType.NON_ORIENTED)
         g.addVertex(100.0, 100.0, DEFAULT_VERTEX_COLOR)
         g.addVertex(400.0, 100.0, DEFAULT_VERTEX_COLOR)
         g.addVertex(250.0, 400.0, DEFAULT_VERTEX_COLOR)
@@ -245,7 +245,7 @@ object GraphDbHelper {
     }
 
     private fun populateSampleGraph2() {
-        val g = Graph(GraphType.NORMAL)
+        val g = Graph(GraphType.NON_ORIENTED)
         val coords = listOf(
             100.0 to 100.0,
             500.0 to 100.0,
@@ -260,7 +260,7 @@ object GraphDbHelper {
     }
 
     private fun populateSampleGraph3() {
-        val g = Graph(GraphType.WEIGHTED)
+        val g = Graph(GraphType.WEIGHTED_ORIENTED)
         val cx = 300.0
         val cy = 300.0
         val r = 200.0
@@ -278,7 +278,7 @@ object GraphDbHelper {
     }
 
     private fun populateSampleGraph4() {
-        val g = Graph(GraphType.NORMAL)
+        val g = Graph(GraphType.NON_ORIENTED)
         val count = 200
         val minX = 50.0
         val minY = 50.0
@@ -382,7 +382,7 @@ object GraphDbHelper {
      * вес ребра — случайное целое от 1 до 20.
      */
     private fun populateSampleGraph7() {
-        val g = Graph(GraphType.WEIGHTED)
+        val g = Graph(GraphType.WEIGHTED_ORIENTED)
         val rnd = Random(7)
         val nodeCount = 500
 
@@ -424,7 +424,7 @@ object GraphDbHelper {
      * (горизонтально/вертикально) с весами, зависящими от позиции.
      */
     private fun populateSampleGraph8() {
-        val g = Graph(GraphType.WEIGHTED)
+        val g = Graph(GraphType.WEIGHTED_NON_ORIENTED)
         val rows = 20
         val cols = 20
         val stepX = 40.0
