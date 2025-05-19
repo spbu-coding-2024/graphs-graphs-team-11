@@ -286,7 +286,15 @@ fun GraphScreen(presenter: CanvasPresenter) {
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { presenter.applyForceAtlas2Layout() }) { Text("Применить ForceAtlas2") }
-                    Button(onClick = { presenter.highlightStronglyConnectedComponents() }) { Text("Выделить SCC") }
+                    Button(
+                        onClick = { presenter.highlightStronglyConnectedComponents() },
+                        enabled = presenter.graphType == GraphType.ORIENTED
+                    ) { Text("Выделить SCC")
+                    }
+                    Button(
+                        onClick = {/* presenter.buildMinimumSpanningTree() */ },
+                        enabled = presenter.graphType == GraphType.WEIGHTED_NON_ORIENTED
+                    ) { Text("Построить MST") }
                 }
                 // Чекбоксы для управления отображением
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
