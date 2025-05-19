@@ -11,7 +11,7 @@ import org.spb.project.model.CircleNode
 import kotlin.random.Random
 
 class CanvasPresenter {
-    private var graph by mutableStateOf(Graph(GraphType.NORMAL))
+    private var graph by mutableStateOf(Graph(GraphType.NON_ORIENTED))
     private val db = GraphDbHelper
     private val forceAtlas = ForceAtlas2Layout()
     private val sccFinder = StronglyConnectedComponents()

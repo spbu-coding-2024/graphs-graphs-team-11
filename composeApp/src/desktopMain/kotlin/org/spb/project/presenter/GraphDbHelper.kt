@@ -142,7 +142,7 @@ object GraphDbHelper {
             ).use { ps ->
                 ps.setInt(1, graphId)
                 ps.executeQuery().use { rs ->
-                    if (rs.next()) rs.getString("type") else GraphType.NORMAL.name
+                    if (rs.next()) rs.getString("type") else GraphType.NON_ORIENTED.name
                 }
             }
             graph = Graph(GraphType.valueOf(typeName))
@@ -234,7 +234,7 @@ object GraphDbHelper {
     }
 
     private fun populateSampleGraph1() {
-        val g = Graph(GraphType.NORMAL)
+        val g = Graph(GraphType.NON_ORIENTED)
         g.addVertex(100.0, 100.0, DEFAULT_VERTEX_COLOR)
         g.addVertex(400.0, 100.0, DEFAULT_VERTEX_COLOR)
         g.addVertex(250.0, 400.0, DEFAULT_VERTEX_COLOR)
@@ -245,7 +245,7 @@ object GraphDbHelper {
     }
 
     private fun populateSampleGraph2() {
-        val g = Graph(GraphType.NORMAL)
+        val g = Graph(GraphType.NON_ORIENTED)
         val coords = listOf(
             100.0 to 100.0,
             500.0 to 100.0,
@@ -278,7 +278,7 @@ object GraphDbHelper {
     }
 
     private fun populateSampleGraph4() {
-        val g = Graph(GraphType.NORMAL)
+        val g = Graph(GraphType.NON_ORIENTED)
         val count = 200
         val minX = 50.0
         val minY = 50.0
