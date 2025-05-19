@@ -9,22 +9,36 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.forEachGesture
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.mouse.mouseScrollFilter
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.pointerMoveFilter
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.*
+import org.jetbrains.skia.Font
+import org.jetbrains.skia.FontStyle
+import org.jetbrains.skia.Paint
+import org.jetbrains.skia.Typeface
+import org.spb.project.common.GraphType
 import org.spb.project.presenter.CanvasPresenter
 import org.spb.project.presenter.GraphDbHelper
 import org.spb.project.presenter.GraphMeta
+import kotlin.math.PI
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Canvas с поддержкой:
@@ -41,130 +55,187 @@ fun DraggableCanvasView(
     modifier: Modifier = Modifier,
     paddingDp: Dp = 50.dp
 ) {
-    val nodes = presenter.circleNodes
-    val edges = presenter.edges
-    var hoverIndex by remember { mutableStateOf<Int?>(null) }
+    // 1) данные и состояние из презентера
+    val nodes       = presenter.circleNodes
+    val edges       = presenter.edges
+    var hoverIndex  by remember { mutableStateOf<Int?>(null) }
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     val selectedIndex by rememberUpdatedState(presenter.selectedNodeIndex)
 
-    val zoom by rememberUpdatedState(presenter.zoom)
+    // 2) зум и анимация
+    val zoomState   by rememberUpdatedState(presenter.zoom)
     val animatedZoom by animateFloatAsState(
-        targetValue = zoom,
-        animationSpec = tween(durationMillis = 200)
+        targetValue = zoomState,
+        animationSpec = tween(200)
     )
+    val z = animatedZoom
 
-    // Масштаб hover
-    val hoverScales = List(nodes.size) { idx ->
-        animateFloatAsState(
-            targetValue = if (idx == hoverIndex) 1.2f else 1f,
-            animationSpec = tween(200)
-        ).value
-    }
-
-    val density = LocalDensity.current
+    // 3) плотность и паддинг в пикселях
+    val density   = LocalDensity.current
     val paddingPx = with(density) { paddingDp.toPx() }
+
+    // 4) размер Canvas для dragForNode
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
-    Canvas(
-        modifier = modifier
-            .onSizeChanged { canvasSize = it }
-            // Тап для выбора вершины
-            .pointerInput(nodes) {
-                detectTapGestures { tap ->
-                    val world = (tap / animatedZoom) + presenter.pan + Offset(paddingPx, paddingPx)
-                    val idx = nodes.indexOfFirst { (it.offset - world).getDistance() < it.radius }
-                        .takeIf { it != -1 }
-                    presenter.selectNode(idx)
-                }
-            }
-            // Drag для вершин или панорамы
-            .pointerInput(nodes) {
-                detectDragGestures(
-                    onDragStart = { down ->
-                        val world = (down / animatedZoom) + presenter.pan + Offset(paddingPx, paddingPx)
-                        draggingIndex = nodes.indexOfFirst { (it.offset - world).getDistance() < it.radius }
-                            .takeIf { it != -1 }
-                        presenter.startDrag(down, paddingPx)
-                    },
-                    onDrag = { change, delta ->
-                        change.consume()
-                        if (draggingIndex != null) {
-                            presenter.onDragForNode(draggingIndex!!, delta, paddingPx, canvasSize, animatedZoom)
-                        } else {
-                            presenter.onDrag(delta)
-                        }
-                    },
-                    onDragEnd = {
-                        presenter.endDrag()
-                        draggingIndex = null
+    // 5) базовый оффсет (пан + паддинг)
+    val base = presenter.pan + Offset(paddingPx, paddingPx)
+
+    Box(modifier = modifier.background(Color(0xFFEFEFEF))) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                // сохраняем размер
+                .onSizeChanged { canvasSize = it }
+                // Тап для выбора вершины
+                .pointerInput(nodes) {
+                    detectTapGestures { tap ->
+                        val world = (tap / z) + presenter.pan + Offset(paddingPx, paddingPx)
+                        val idx = nodes.indexOfFirst {
+                            (it.offset - world).getDistance() < it.radius
+                        }.takeIf { it != -1 }
+                        presenter.selectNode(idx)
                     }
-                )
-            }
-            // Pinch zoom and pan
-            .pointerInput(Unit) {
-                detectTransformGestures { centroid, panDelta, zoomChange, _ ->
-                    presenter.zoomBy(zoomChange, centroid)
-                    presenter.onDrag(panDelta)
                 }
-            }
-            // Scroll zoom
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        if (event.type == PointerEventType.Scroll) {
-                            event.changes.forEach { ch ->
-                                val factor = 1f + ch.scrollDelta.y * 0.01f
-                                presenter.zoomBy(factor, ch.position)
-                                ch.consume()
+                // Драг для перетаскивания вершины или канвы
+                .pointerInput(nodes) {
+                    detectDragGestures(
+                        onDragStart = { down ->
+                            val world = (down / z) + presenter.pan + Offset(paddingPx, paddingPx)
+                            draggingIndex = nodes.indexOfFirst {
+                                (it.offset - world).getDistance() < it.radius
+                            }.takeIf { it != -1 }
+                            presenter.startDrag(down, paddingPx)
+                        },
+                        onDrag = { change, delta ->
+                            change.consume()
+                            if (draggingIndex != null) {
+                                presenter.onDragForNode(
+                                    draggingIndex!!, delta,
+                                    paddingPx, canvasSize, z
+                                )
+                            } else {
+                                presenter.onDrag(delta)
+                            }
+                        },
+                        onDragEnd = {
+                            presenter.endDrag()
+                            draggingIndex = null
+                        }
+                    )
+                }
+                // Колёсико мыши для зума (ни на что другое не влияет)
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val ev = awaitPointerEvent()                       // 1) без аргументов
+                            if (ev.type == PointerEventType.Scroll) {          // 2) фильтруем Scroll-события
+                                val scroll = ev.changes.firstOrNull()?.scrollDelta?.y ?: 0f
+                                if (scroll != 0f) {
+                                    val factor = if (scroll > 0f)
+                                        1f + scroll / 100f
+                                    else
+                                        1f / (1f + (-scroll / 100f))
+                                    presenter.zoomBy(factor, ev.changes.first().position)
+                                    ev.changes.forEach { it.consume() }
+                                }
                             }
                         }
                     }
                 }
-            }
-            // Hover detection
-            .pointerMoveFilter(
-                onMove = { pos ->
-                    val world = (pos / animatedZoom) + presenter.pan + Offset(paddingPx, paddingPx)
-                    hoverIndex = nodes.indexOfFirst { (it.offset - world).getDistance() < it.radius }
-                        .takeIf { it != -1 }
-                    false
-                },
-                onExit = {
-                    hoverIndex = null
-                    false
-                }
-            )
-    ) {
-        val z = animatedZoom
-        val base = presenter.pan + Offset(paddingPx, paddingPx)
-
-        // 1) Рисуем рёбра по структуре graph.getEdges()
-        edges.forEachIndexed { i, list ->
-            val from = (nodes[i].offset - base) * z
-            list.forEach { e ->
-                val to = (nodes[e.vertex].offset - base) * z
-                drawLine(
-                    color = Color(e.color),
-                    start = from,
-                    end = to,
-                    strokeWidth = 2f * z
+                // Ховер-эффект
+                .pointerMoveFilter(
+                    onMove = { pos ->
+                        val world = (pos / z) + presenter.pan + Offset(paddingPx, paddingPx)
+                        hoverIndex = nodes.indexOfFirst {
+                            (it.offset - world).getDistance() < it.radius
+                        }.takeIf { it != -1 }
+                        false
+                    },
+                    onExit = {
+                        hoverIndex = null
+                        false
+                    }
                 )
+        ) {
+            // рисуем граф: сначала рёбра, потом узлы, потом стрелки
+            val arrowHeads = mutableListOf<Pair<Path, Color>>()
+
+            edges.forEachIndexed { i, list ->
+                val from = (nodes[i].offset - base) * z
+                list.forEach { e ->
+                    val to = (nodes[e.vertex].offset - base) * z
+                    // ребро
+                    drawLine(
+                        color = Color(e.color),
+                        start = from,
+                        end = to,
+                        strokeWidth = 2f * z
+                    )
+                    // стрелки для ORIENTED
+                    if (presenter.graphType == GraphType.ORIENTED) {
+                        val angle = atan2(to.y - from.y, to.x - from.x)
+                        val arrowSize = 10f * z
+                        val arrowAngle = (PI / 6).toFloat()
+                        val p = Path().apply {
+                            moveTo(to.x, to.y)
+                            lineTo(
+                                to.x - arrowSize * cos(angle - arrowAngle),
+                                to.y - arrowSize * sin(angle - arrowAngle)
+                            )
+                            moveTo(to.x, to.y)
+                            lineTo(
+                                to.x - arrowSize * cos(angle + arrowAngle),
+                                to.y - arrowSize * sin(angle + arrowAngle)
+                            )
+                        }
+                        arrowHeads += p to Color(e.color)
+                    }
+                }
+            }
+
+            // узлы с hover/selection
+            nodes.forEachIndexed { idx, node ->
+                val scale  = if (idx == hoverIndex) 1.2f else 1f
+                val radius = node.radius * z * scale
+                val color  = if (idx == selectedIndex) Color.Yellow else Color(node.color)
+                drawCircle(
+                    color  = color,
+                    radius = radius,
+                    center = (node.offset - base) * z
+                )
+            }
+
+            // стрелочные головки
+            if (presenter.graphType == GraphType.ORIENTED) {
+                arrowHeads.forEach { (path, color) ->
+                    drawPath(path = path, color = color, style = Stroke(width = 2f * z))
+                }
             }
         }
 
-        // 2) Рисуем вершины; подсвечиваем выбранную
-        nodes.forEachIndexed { idx, node ->
-            val drawColor = if (idx == selectedIndex) Color.Yellow else Color(node.color)
-            drawCircle(
-                color = drawColor,
-                radius = node.radius * z * hoverScales[idx],
-                center = (node.offset - base) * z
-            )
+        // Text-веса посередине рёбер для WEIGHTED
+        if (presenter.graphType == GraphType.WEIGHTED) {
+            edges.forEachIndexed { i, list ->
+                val from = (nodes[i].offset - base) * z
+                list.forEach { e ->
+                    val to = (nodes[e.vertex].offset - base) * z
+                    val mid = Offset((from.x + to.x) / 2f, (from.y + to.y) / 2f)
+                    val xDp = with(density) { mid.x.toDp() }
+                    val yDp = with(density) { mid.y.toDp() }
+
+                    Text(
+                        text = e.weight.toString(),
+                        fontSize = (14 * z).sp,
+                        color = Color(e.color),
+                        modifier = Modifier.offset {
+                            IntOffset(xDp.roundToPx(), yDp.roundToPx())
+                        }
+                    )
+                }
+            }
         }
     }
 }
-
 
 @Composable
 fun GraphScreen(presenter: CanvasPresenter) {
@@ -252,6 +323,14 @@ fun GraphScreen(presenter: CanvasPresenter) {
                         Text("Удалить граф", color = Color.White)
                     }
                     ColorDropdown(current = selectedColor, onSelect = { selectedColor = it })
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { presenter.applyForceAtlas2Layout() }) {
+                        Text("Применить ForceAtlas2")
+                    }
+                    Button(onClick = { presenter.highlightStronglyConnectedComponents() }) {
+                        Text("Выделить SCC")
+                    }
                 }
             }
         }

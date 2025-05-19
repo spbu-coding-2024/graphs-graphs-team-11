@@ -1,5 +1,6 @@
 package org.spb.project.presenter
 
+import ForceAtlas2Layout
 import androidx.compose.runtime.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntSize
@@ -7,10 +8,15 @@ import org.spb.project.common.Edge
 import org.spb.project.common.Graph
 import org.spb.project.common.GraphType
 import org.spb.project.model.CircleNode
+import kotlin.random.Random
 
 class CanvasPresenter {
     private var graph by mutableStateOf(Graph(GraphType.NORMAL))
     private val db = GraphDbHelper
+    private val forceAtlas = ForceAtlas2Layout()
+    private val sccFinder = StronglyConnectedComponents()
+    val graphType: GraphType
+        get() = graph.getType()
 
     // UI-список вершин
     private val nodesList = mutableStateListOf<CircleNode>()
@@ -183,5 +189,34 @@ class CanvasPresenter {
         val newZoom = (old * factor).coerceIn(0.1f, 5f)
         pan += (focus / old) - (focus / newZoom)
         zoom = newZoom
+    }
+
+    /**
+     * Вызывать после одного шага ForceAtlas2: обновляет модель и UI.
+     */
+    fun applyForceAtlas2Layout() {
+        // 1) применяем раскладку к модели
+        forceAtlas.applyLayout(graph)
+        // 2) обновляем UI-координаты
+        val vertices = graph.getVertexes()
+        for (i in vertices.indices) {
+            val v = vertices[i]
+            nodesList[i] = nodesList[i].copy(offset = Offset(v.x.toFloat(), v.y.toFloat()))
+        }
+    }
+
+    /**
+     * Выделить сильносвязные компоненты: покрасить узлы в случайные цвета по компонентам.
+     */
+    fun highlightStronglyConnectedComponents() {
+        val comps = sccFinder.findComponents(graph)
+        val seed = Random(0)
+        val colors = comps.map { Random(seed.nextInt()).nextInt() or 0xFF000000.toInt() }
+        comps.forEachIndexed { idx, comp ->
+            val color = colors[idx]
+            comp.forEach { i ->
+                nodesList[i] = nodesList[i].copy(color = color)
+            }
+        }
     }
 }
