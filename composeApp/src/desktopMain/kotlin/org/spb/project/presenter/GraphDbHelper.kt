@@ -260,7 +260,7 @@ object GraphDbHelper {
     }
 
     private fun populateSampleGraph3() {
-        val g = Graph(GraphType.WEIGHTED)
+        val g = Graph(GraphType.WEIGHTED_ORIENTED)
         val cx = 300.0
         val cy = 300.0
         val r = 200.0
@@ -382,7 +382,7 @@ object GraphDbHelper {
      * вес ребра — случайное целое от 1 до 20.
      */
     private fun populateSampleGraph7() {
-        val g = Graph(GraphType.WEIGHTED)
+        val g = Graph(GraphType.WEIGHTED_ORIENTED)
         val rnd = Random(7)
         val nodeCount = 500
 
@@ -424,7 +424,7 @@ object GraphDbHelper {
      * (горизонтально/вертикально) с весами, зависящими от позиции.
      */
     private fun populateSampleGraph8() {
-        val g = Graph(GraphType.WEIGHTED)
+        val g = Graph(GraphType.WEIGHTED_NON_ORIENTED)
         val rows = 20
         val cols = 20
         val stepX = 40.0
