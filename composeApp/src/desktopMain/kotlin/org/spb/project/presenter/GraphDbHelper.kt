@@ -6,6 +6,7 @@ import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.SQLException
 import kotlin.math.cos
+import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -62,6 +63,8 @@ object GraphDbHelper {
                     populateSampleGraph4()
                     populateSampleGraph5()
                     populateSampleGraph6()
+                    populateSampleGraph7()
+                    populateSampleGraph8()
                 }
             }
         }
@@ -370,5 +373,87 @@ object GraphDbHelper {
                 }
         }
         saveGraph(g, 6)
+    }
+
+    /**
+     * Пример 7.
+     * Взвешенный граф из 500 случайно разбросанных вершин.
+     * Каждая вершина соединяется с 5 ближайшими соседями,
+     * вес ребра — случайное целое от 1 до 20.
+     */
+    private fun populateSampleGraph7() {
+        val g = Graph(GraphType.WEIGHTED)
+        val rnd = Random(7)
+        val nodeCount = 500
+
+        // 1) создаём вершины в прямоугольнике 0..1000 × 0..800
+        repeat(nodeCount) {
+            val x = rnd.nextDouble() * 1000.0
+            val y = rnd.nextDouble() * 800.0
+            g.addVertex(x, y, DEFAULT_VERTEX_COLOR)
+        }
+
+        // 2) для каждой вершины соединяем с 5 ближайшими
+        val verts = g.getVertexes()
+        for (i in verts.indices) {
+            val xi = verts[i].x
+            val yi = verts[i].y
+            // вычисляем квадраты дистанций до всех остальных
+            val nearest = verts
+                .mapIndexed { j, v ->
+                    j to ((xi - v.x).pow(2) + (yi - v.y).pow(2))
+                }
+                .filter { it.first != i }
+                .sortedBy { it.second }
+                .take(5)
+
+            // создаём ребра с весом 1..20
+            nearest.forEach { (j, _) ->
+                val weight = rnd.nextInt(1, 21)
+                g.addEdge(i, j, weight, DEFAULT_EDGE_COLOR)
+            }
+        }
+
+        saveGraph(g, 7)
+    }
+
+    /**
+     * Пример 8.
+     * Взвешенный «сеточный» граф 20×20 (400 узлов),
+     * вершины лежат на равномерной сетке, рёбра между соседями
+     * (горизонтально/вертикально) с весами, зависящими от позиции.
+     */
+    private fun populateSampleGraph8() {
+        val g = Graph(GraphType.WEIGHTED)
+        val rows = 20
+        val cols = 20
+        val stepX = 40.0
+        val stepY = 40.0
+
+        // создаём сетку вершин
+        for (r in 0 until rows) {
+            for (c in 0 until cols) {
+                val x = 50.0 + c * stepX
+                val y = 50.0 + r * stepY
+                g.addVertex(x, y, DEFAULT_VERTEX_COLOR)
+            }
+        }
+        // добавляем рёбра к правому и нижнему соседям,
+        // вес = (r+c) mod 10 + 1, чтобы были «волнистые» значения
+        for (r in 0 until rows) {
+            for (c in 0 until cols) {
+                val idx = r * cols + c
+                val baseWeight = (r + c) % 10 + 1
+                // вправо
+                if (c < cols - 1) {
+                    g.addEdge(idx, idx + 1, baseWeight, DEFAULT_EDGE_COLOR)
+                }
+                // вниз
+                if (r < rows - 1) {
+                    g.addEdge(idx, idx + cols, baseWeight, DEFAULT_EDGE_COLOR)
+                }
+            }
+        }
+        saveGraph(g, 8)
     }
 }
