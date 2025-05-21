@@ -206,18 +206,33 @@ class CanvasPresenter {
     }
 
     /**
-     * Выделить сильносвязные компоненты: покрасить узлы в случайные цвета по компонентам.
+     * Выделить сильносвязные компоненты: покрасить узлы в «случайные»,
+     * но постоянно одни и те же цвета по компонентам.
      */
     fun highlightStronglyConnectedComponents() {
-        // Если граф не ориентированный — SCC неприменим
+        // 1) SCC имеет смысл только для ориентированного графа
         if (graph.getType() != GraphType.ORIENTED) return
-        val comps = sccFinder.findComponents(graph)
-        val seed = Random(0)
-        val colors = comps.map { Random(seed.nextInt()).nextInt() or 0xFF000000.toInt() }
-        comps.forEachIndexed { idx, comp ->
+
+        // 2) Находим все СК-компоненты
+        val components = sccFinder.findComponents(graph)
+
+        // 3) Фиксируем сид, чтобы цветовые «рандомы» были всегда одинаковыми
+        val rnd = Random(0)
+
+        // 4) Для каждой компоненты генерируем свой цвет с альфой=FF
+        val colors = components.map {
+            val rgb = rnd.nextInt(0x1_000_000)         // диапазон 0x000000..0xFFFFFF
+            (0xFF shl 24) or rgb                      // ARGB: непрозрачный цвет
+        }
+
+        // 5) Применяем цвет к вершинам, безопасно проверяя диапазон индексов
+        val nodeCount = nodesList.size
+        components.forEachIndexed { idx, comp ->
             val color = colors[idx]
-            comp.forEach { i ->
-                nodesList[i] = nodesList[i].copy(color = color)
+            comp.forEach { nodeIndex ->
+                if (nodeIndex in 0 until nodeCount) {
+                    nodesList[nodeIndex] = nodesList[nodeIndex].copy(color = color)
+                }
             }
         }
     }
