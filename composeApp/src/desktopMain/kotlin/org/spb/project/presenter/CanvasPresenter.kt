@@ -14,6 +14,8 @@ class CanvasPresenter {
     private val db = GraphDbHelper
     private val forceAtlas = ForceAtlas2Layout()
     private val sccFinder = StronglyConnectedComponents()
+    // Добавляем поле для MST-алгоритма
+    private val mstBuilder = MinimumSpanningTree()
     val graphType: GraphType
         get() = graph.getType()
 
@@ -235,4 +237,29 @@ class CanvasPresenter {
             }
         }
     }
+
+    fun highlightMinimumSpanningTree() {
+        // 1) Строим MST
+        val mst: List<MinimumSpanningTree.MSTEdge> = mstBuilder.buildMST(graph)
+
+        // 2) Сбрасываем цвета всех рёбер к дефолтному
+        val defaultEdgeColor = 0xFF888888.toInt()
+        graph.getEdges().forEach { list ->
+            list.forEach { it.color = defaultEdgeColor }
+        }
+
+        // 3) Устанавливаем цвет MST-рёбер
+        val mstEdgeColor = 0xFFFF0000.toInt() // красный
+        mst.forEach { edge ->
+            // граф ненаправленный, поэтому надо раскрасить оба направления
+            graph.getEdges()[edge.u]
+                .firstOrNull { it.vertex == edge.v }
+                ?.color = mstEdgeColor
+
+            graph.getEdges()[edge.v]
+                .firstOrNull { it.vertex == edge.u }
+                ?.color = mstEdgeColor
+        }
+    }
+
 }
