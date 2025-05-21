@@ -1,6 +1,5 @@
 package org.spb.project.presenter
 
-import ForceAtlas2Layout
 import androidx.compose.runtime.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntSize
