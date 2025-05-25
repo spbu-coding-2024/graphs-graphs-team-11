@@ -7,12 +7,15 @@ import androidx.compose.ui.unit.IntSize
 import org.spb.project.common.Edge
 import org.spb.project.common.Graph
 import org.spb.project.common.GraphType
+import org.spb.project.common.Vertex
 import org.spb.project.model.CircleNode
 import kotlin.random.Random
 
 class CanvasPresenter {
     private var graph by mutableStateOf(Graph(GraphType.NON_ORIENTED))
     private val db = GraphDbHelper
+
+    val neo4jDb = neo4jDb("bolt://localhost:7687", "neo4j", "lolkekcheb")
     private val forceAtlas = ForceAtlas2Layout()
     private val sccFinder = StronglyConnectedComponents()
     val graphType: GraphType
@@ -24,7 +27,8 @@ class CanvasPresenter {
 
     // Список рёбер из модели
     val edges: List<List<Edge>> get() = graph.getEdges()
-
+    // Список вершин
+    val vertexes:List<Vertex> get() = graph.getVertexes()
     // Текущий выбранный узел (или null)
     var selectedNodeIndex by mutableStateOf<Int?>(null)
         private set
@@ -135,6 +139,25 @@ class CanvasPresenter {
             nodesList.add(CircleNode(Offset(v.x.toFloat(), v.y.toFloat()), color = v.color))
         }
         selectedNodeIndex = null
+    }
+    fun loadNeo4jGraph(graphId: Int = 1){
+        graph = neo4jDb.readGraph(graphId)
+        nodesList.clear()
+        graph.getVertexes().forEach { v ->
+            nodesList.add(CircleNode(Offset(v.x.toFloat(), v.y.toFloat()), color = v.color))
+        }
+        selectedNodeIndex = null
+    }
+
+    fun saveNeo4jGraph(graphId:Int = 1){
+        nodesList.forEachIndexed { i, node ->
+            val v = graph.getVertexes()[i]
+            v.x = node.offset.x.toDouble()
+            v.y = node.offset.y.toDouble()
+            v.color = node.color
+        }
+        neo4jDb.saveGraphNeo4j(graph, graphId)
+
     }
 
     /**

@@ -10,6 +10,8 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.forEachGesture
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +27,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.pointerMoveFilter
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.*
 import org.spb.project.common.GraphType
 import org.spb.project.presenter.CanvasPresenter
@@ -235,13 +238,41 @@ fun GraphScreen(presenter: CanvasPresenter) {
     var selected by remember { mutableStateOf<GraphMeta?>(null) }
     var expanded by remember { mutableStateOf(false) }
     var selectedColor by remember { mutableStateOf(Color.Blue) }
-
+    val radioOptions = listOf("SQL","NEO4J" )
+    val (selectedOption, onOptionSelected) = remember { mutableStateOf(radioOptions[0]) }
     // Состояния чекбоксов
     var showArrows by remember { mutableStateOf(true) }
     var showWeights by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         graphList = GraphDbHelper.getAllGraphs()
+    }
+    @Composable
+    fun RadioButtonSingleSelection(modifier: Modifier = Modifier) {
+        Column {
+            radioOptions.forEach { text ->
+                Row(
+                    Modifier
+                        .height(56.dp)
+                        .padding(start =890.dp, top = 30.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        modifier =Modifier.selectable(
+                            selected = (text == selectedOption),
+                            onClick = {onOptionSelected(text)}
+                        ),
+                        selected = (text == selectedOption),
+                        onClick = null
+
+                    )
+                    Text(
+                        text = text,
+                        modifier = Modifier.padding(start = 16.dp)
+                    )
+                }
+            }
+        }
     }
 
     Column(
@@ -259,7 +290,11 @@ fun GraphScreen(presenter: CanvasPresenter) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { presenter.addCircle(selectedColor.toArgb()) }) { Text("Добавить вершину") }
                     Button(onClick = {
-                        selected?.let { presenter.saveGraph(it.id) }
+                        if (selectedOption == "NEO4J"){
+                            selected?.let {presenter.saveNeo4jGraph(it.id)}
+                        }
+                        else{
+                            selected?.let { presenter.saveGraph(it.id) }}
                     }, enabled = selected != null) { Text("Сохранить") }
                     Button(onClick = { presenter.paintAll(selectedColor.toArgb()) }) { Text("Окрасить все") }
                     Button(onClick = { presenter.paintSelectedNode(selectedColor.toArgb()) }, enabled = presenter.selectedNodeIndex != null) { Text("Окрасить выбранную") }
@@ -272,7 +307,10 @@ fun GraphScreen(presenter: CanvasPresenter) {
                             graphList.forEach { meta -> DropdownMenuItem(onClick = { selected = meta; expanded = false }) { Text("Граф #${meta.id} (${meta.type})") } }
                         }
                     }
-                    Button(onClick = { selected?.let { presenter.loadGraph(it.id) } }, enabled = selected != null) { Text("Загрузить") }
+                    Button(onClick = {if (selectedOption == "NEO4J"){
+                        selected?.let { presenter.loadNeo4jGraph(it.id)}
+                    }
+                        else{selected?.let { presenter.loadGraph(it.id) } }}, enabled = selected != null) { Text("Загрузить") }
                     Button(onClick = {
                         val newId = GraphDbHelper.getNextGraphId()
                         presenter.saveGraph(newId)
@@ -324,6 +362,8 @@ fun GraphScreen(presenter: CanvasPresenter) {
             }
         }
     }
+    RadioButtonSingleSelection()
+
 }
 
 @Composable
