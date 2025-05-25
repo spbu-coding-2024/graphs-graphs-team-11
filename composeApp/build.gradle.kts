@@ -23,6 +23,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtime.compose)
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
             implementation("org.xerial:sqlite-jdbc:3.36.0.3")
+            implementation("org.neo4j.driver:neo4j-java-driver:5.14.0")
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
