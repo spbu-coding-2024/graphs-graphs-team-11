@@ -14,7 +14,7 @@ class CanvasPresenter {
     private var graph by mutableStateOf(Graph(GraphType.NON_ORIENTED))
     private val db = GraphDbHelper
 
-    val neo4jDb = neo4jDb("bolt://localhost:7687", "neo4j", "lolkekcheb")
+    private val neo4jDb = neo4jDb("bolt://localhost:7687", "neo4j", "lolkekcheb")
     private val forceAtlas = ForceAtlas2Layout()
     private val sccFinder = StronglyConnectedComponents()
     // Добавляем поле для MST-алгоритма
