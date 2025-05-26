@@ -1,6 +1,5 @@
 package org.spb.project.presenter
 
-import ForceAtlas2Layout
 import androidx.compose.runtime.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntSize
@@ -18,6 +17,8 @@ class CanvasPresenter {
     val neo4jDb = neo4jDb("bolt://localhost:7687", "neo4j", "lolkekcheb")
     private val forceAtlas = ForceAtlas2Layout()
     private val sccFinder = StronglyConnectedComponents()
+    // Добавляем поле для MST-алгоритма
+    private val mstBuilder = MinimumSpanningTree()
     val graphType: GraphType
         get() = graph.getType()
 
@@ -229,19 +230,59 @@ class CanvasPresenter {
     }
 
     /**
-     * Выделить сильносвязные компоненты: покрасить узлы в случайные цвета по компонентам.
+     * Выделить сильносвязные компоненты: покрасить узлы в «случайные»,
+     * но постоянно одни и те же цвета по компонентам.
      */
     fun highlightStronglyConnectedComponents() {
-        // Если граф не ориентированный — SCC неприменим
+        // 1) SCC имеет смысл только для ориентированного графа
         if (graph.getType() != GraphType.ORIENTED) return
-        val comps = sccFinder.findComponents(graph)
-        val seed = Random(0)
-        val colors = comps.map { Random(seed.nextInt()).nextInt() or 0xFF000000.toInt() }
-        comps.forEachIndexed { idx, comp ->
+
+        // 2) Находим все СК-компоненты
+        val components = sccFinder.findComponents(graph)
+
+        // 3) Фиксируем сид, чтобы цветовые «рандомы» были всегда одинаковыми
+        val rnd = Random(0)
+
+        // 4) Для каждой компоненты генерируем свой цвет с альфой=FF
+        val colors = components.map {
+            val rgb = rnd.nextInt(0x1_000_000)         // диапазон 0x000000..0xFFFFFF
+            (0xFF shl 24) or rgb                      // ARGB: непрозрачный цвет
+        }
+
+        // 5) Применяем цвет к вершинам, безопасно проверяя диапазон индексов
+        val nodeCount = nodesList.size
+        components.forEachIndexed { idx, comp ->
             val color = colors[idx]
-            comp.forEach { i ->
-                nodesList[i] = nodesList[i].copy(color = color)
+            comp.forEach { nodeIndex ->
+                if (nodeIndex in 0 until nodeCount) {
+                    nodesList[nodeIndex] = nodesList[nodeIndex].copy(color = color)
+                }
             }
         }
     }
+
+    fun highlightMinimumSpanningTree() {
+        // 1) Строим MST
+        val mst: List<MinimumSpanningTree.MSTEdge> = mstBuilder.buildMST(graph)
+
+        // 2) Сбрасываем цвета всех рёбер к дефолтному
+        val defaultEdgeColor = 0xFF888888.toInt()
+        graph.getEdges().forEach { list ->
+            list.forEach { it.color = defaultEdgeColor }
+        }
+
+        // 3) Устанавливаем цвет MST-рёбер
+        val mstEdgeColor = 0xFFFF0000.toInt() // красный
+        mst.forEach { edge ->
+            // граф ненаправленный, поэтому надо раскрасить оба направления
+            graph.getEdges()[edge.u]
+                .firstOrNull { it.vertex == edge.v }
+                ?.color = mstEdgeColor
+
+            graph.getEdges()[edge.v]
+                .firstOrNull { it.vertex == edge.u }
+                ?.color = mstEdgeColor
+        }
+    }
+
 }

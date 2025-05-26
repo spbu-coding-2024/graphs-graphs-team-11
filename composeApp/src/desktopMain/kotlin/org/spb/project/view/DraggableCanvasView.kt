@@ -330,7 +330,7 @@ fun GraphScreen(presenter: CanvasPresenter) {
                     ) { Text("Выделить SCC")
                     }
                     Button(
-                        onClick = {/* presenter.buildMinimumSpanningTree() */ },
+                        onClick = { presenter.highlightMinimumSpanningTree()  },
                         enabled = presenter.graphType == GraphType.WEIGHTED_NON_ORIENTED
                     ) { Text("Построить MST") }
                 }
