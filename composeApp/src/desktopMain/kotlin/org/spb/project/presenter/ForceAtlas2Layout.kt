@@ -6,14 +6,18 @@ import org.spb.project.common.Edge
 import kotlin.math.sqrt
 
 /**
- * Реализация одного шага алгоритма ForceAtlas2 для расстановки вершин графа.
+ * Пошаговая реализация алгоритма ForceAtlas2 для автоматической расстановки узлов графа.
+ * Каждый вызов applyLayout смещает вершины под действием:
+ *  - отталкивания между всеми вершинами (Кулон)
+ *  - притяжения вдоль рёбер (закон Гука)
+ *  - "гравитации" к центру координат
+ *  - демпфирования и ограничения максимального смещения
  *
- * Параметры:
- * @param repulsionConstant  сила отталкивания (Coulomb)
- * @param attractionConstant сила притяжения по рёбрам (Hooke)
- * @param damping            коэффициент демпфирования (уменьшает «шаг»)
- * @param gravity            сила «центростремительного» гравитационного притяжения к центру
- * @param maxDisplacement    максимальное смещение вершины за 1 итерацию
+ * @param repulsionConstant  сила отталкивания (чем больше — тем сильнее узлы разлетаются)
+ * @param attractionConstant сила притяжения по рёбрам (чем больше — тем сильнее узлы тянутся друг к другу)
+ * @param damping            коэффициент демпфирования, сглаживает движение
+ * @param gravity            сила притяжения к точке (0,0), чтобы узлы не улетали слишком далеко
+ * @param maxDisplacement    максимальное смещение вершины за одну итерацию
  */
 class ForceAtlas2Layout(
     private val repulsionConstant: Double = 100.0,
@@ -23,48 +27,48 @@ class ForceAtlas2Layout(
     private val maxDisplacement: Double = 10.0
 ) {
     /**
-     * Выполнить один итерационный шаг ForceAtlas2:
-     *  1) Рассчитать отталкивающие силы между всеми парами вершин.
-     *  2) Рассчитать притягивающие силы вдоль рёбер.
-     *  3) Добавить «гравитацию», чтобы узлы не «улетали» слишком далеко.
-     *  4) Ограничить максимальное смещение.
-     *  5) Обновить позиции вершин.
+     * Выполнить один шаг алгоритма ForceAtlas2 на переданном графе:
+     * 1. Рассчитать отталкивающие силы между всеми парами вершин.
+     * 2. Рассчитать притягивающие силы вдоль рёбер.
+     * 3. Применить гравитацию к центру.
+     * 4. Ограничить макс. смещение и применить демпфирование.
+     * 5. Обновить позиции вершин.
      *
-     * @param graph Граф, содержащий вершины с полями x, y и список рёбер.
+     * @param graph источник вершин и рёбер
      */
     fun applyLayout(graph: Graph) {
-        // 1) Получаем вершины и список рёбер (каждое ребро хранит .vertex — индекс смежной вершины)
+        // Получаем текущие вершины и списки их рёбер
         val vertices: List<Vertex> = graph.getVertexes()
-        val edges: List<List<Edge>> = graph.getEdges()   // теперь — List<List<Edge>>, не List<List<Int>>
+        val edges: List<List<Edge>> = graph.getEdges()
         val n = vertices.size
 
-        // 2) Массивы для накопления векторов силы по осям X и Y
+        // Массивы для накопления векторов силы по X и Y
         val forceX = DoubleArray(n) { 0.0 }
         val forceY = DoubleArray(n) { 0.0 }
 
-        // 3) Отталкивающие силы (Coulomb) между всеми парами i<j
+        // 1) Кулоновское отталкивание между всеми парами i < j
         for (i in 0 until n) {
             for (j in i + 1 until n) {
                 val vi = vertices[i]
                 val vj = vertices[j]
                 val dx = vi.x - vj.x
                 val dy = vi.y - vj.y
-                // Добавляем эпсилон, чтобы исключить деление на ноль
+                // небольшой эпсилон, чтобы не было деления на ноль
                 val dist2 = dx * dx + dy * dy + 0.01
-                val dist  = sqrt(dist2)
-                // Сила Кулона: K_r / r^2
+                val dist = sqrt(dist2)
+                // сила отталкивания: repulsionConstant / r^2
                 val f = repulsionConstant / dist2
-                // Вектор единичной длины * сила
+                // компоненты вектора силы
                 val fx = (dx / dist) * f
                 val fy = (dy / dist) * f
 
-                // Прикладываем к двум вершинам в противоположных направлениях
+                // прикладываем к двум вершинам в разные стороны
                 forceX[i] += fx; forceY[i] += fy
                 forceX[j] -= fx; forceY[j] -= fy
             }
         }
 
-        // 4) Притягивающие силы (Hooke) вдоль всех рёбер
+        // 2) Притяжение по рёбрам (закон Гука)
         edges.forEachIndexed { i, adjList ->
             val vi = vertices[i]
             adjList.forEach { edge ->
@@ -72,9 +76,9 @@ class ForceAtlas2Layout(
                 val vj = vertices[j]
                 val dx = vj.x - vi.x
                 val dy = vj.y - vi.y
-                // Длина + эпсилон
+                // длина ребра + эпсилон
                 val dist = sqrt(dx * dx + dy * dy) + 0.01
-                // Сила Гука: K_a * r
+                // сила упругости: attractionConstant * r
                 val f = attractionConstant * dist
                 val fx = (dx / dist) * f
                 val fy = (dy / dist) * f
@@ -84,30 +88,28 @@ class ForceAtlas2Layout(
             }
         }
 
-        // 5) «Гравитация» к центру координат (0,0)
+        // 3) Гравитация к центру координат (0,0)
         for (i in 0 until n) {
             val v = vertices[i]
-            val dx = -v.x
+            val dx = -v.x  // вектор к центру
             val dy = -v.y
             val dist = sqrt(dx * dx + dy * dy) + 0.01
             forceX[i] += gravity * dx / dist
             forceY[i] += gravity * dy / dist
         }
 
-        // 6) Обновление позиций: демпфирование + ограничение maxDisplacement
+        // 4) Ограничение смещения и демпфирование перед обновлением
         for (i in 0 until n) {
-            // Изначальное смещение
             var dx = forceX[i] * damping
             var dy = forceY[i] * damping
 
-            // Ограничиваем длину вектора смещения
             val disp = sqrt(dx * dx + dy * dy)
             if (disp > maxDisplacement) {
                 dx = dx / disp * maxDisplacement
                 dy = dy / disp * maxDisplacement
             }
 
-            // Применяем к координатам
+            // 5) Обновляем координаты вершины
             vertices[i].x += dx
             vertices[i].y += dy
         }

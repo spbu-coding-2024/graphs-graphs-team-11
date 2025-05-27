@@ -2,9 +2,14 @@ package org.spb.project.presenter
 
 import org.spb.project.common.GraphType
 
-// Простая модель для отображения списка графов в UI
-// Хранит идентификатор графа и его тип
+/**
+ * Короткая модель для списка доступных графов в интерфейсе.
+ *
+ * @property id   Уникальный идентификатор графа в базе данных.
+ * @property type Тип графа — определяет, является ли он ориентированным,
+ *                взвешенным и т. п., чтобы показать соответствующий значок или фильтровать список.
+ */
 data class GraphMeta(
-    val id: Int,            // уникальный номер графа в базе данных
-    val type: GraphType     // тип графа: NORMAL, ORIENTED или WEIGHTED
+    val id: Int,        // номер записи в БД, по которому можно загрузить конкретный граф
+    val type: GraphType // тип графа (NON_ORIENTED, ORIENTED, WEIGHTED_ORIENTED, WEIGHTED_NON_ORIENTED)
 )
