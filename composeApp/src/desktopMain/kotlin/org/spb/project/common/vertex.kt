@@ -1,14 +1,14 @@
 package org.spb.project.common
 
 /**
- * Описание вершины графа.
+ * Представляет точку (вершину) в пространстве графа.
  *
- * @param x      координата X
- * @param y      координата Y
- * @param color  цвет вершины (Int ARGB), по умолчанию черный
+ * @property x      координата по оси X, используется для расположения вершины на холсте
+ * @property y      координата по оси Y, используется для расположения вершины на холсте
+ * @property color  ARGB-цвет вершины (Int), по умолчанию — чёрный (0xFF000000)
  */
 open class Vertex(
-    var x: Double,
-    var y: Double,
-    var color: Int = 0xFF000000.toInt()
+    var x: Double,                 // горизонтальная позиция точки
+    var y: Double,                 // вертикальная позиция точки
+    var color: Int = 0xFF000000.toInt()  // цвет вершины для рисования
 )
