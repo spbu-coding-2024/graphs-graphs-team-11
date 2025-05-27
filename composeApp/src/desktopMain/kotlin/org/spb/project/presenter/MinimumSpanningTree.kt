@@ -3,53 +3,57 @@ package org.spb.project.presenter
 import org.spb.project.common.Graph
 
 /**
- * Построение минимального остовного дерева (МИНИМАЛЬНОГО ОСТОВА) в неориентированном
- * взвешенном графе по алгоритму Крускала.
- *
- * Сложность: O(E log E) из-за сортировки списка рёбер, где E — число рёбер.
+ * Алгоритм Крускала для построения минимального остовного дерева (MST)
+ * в неориентированном взвешенном графе.
+ * Временная сложность: O(E log E) за счёт сортировки ребёр,
+ * где E — число ребёр.
  */
 class MinimumSpanningTree {
 
     /**
-     * Представление ребра остова.
-     * @param u     индекс одной вершины
-     * @param v     индекс другой вершины
+     * Представление ребра в MST.
+     * @param u      одна из вершин ребра
+     * @param v      вторая вершина ребра
      * @param weight вес ребра
      */
-    data class MSTEdge(val u: Int, val v: Int, val weight: Int)
+    data class MSTEdge(
+        val u: Int,
+        val v: Int,
+        val weight: Int
+    )
 
     /**
-     * Построить список рёбер минимального остовного дерева.
+     * Строит список ребер минимального остова для заданного графа.
+     * 1. Собираем все уникальные ребра (u < v).
+     * 2. Сортируем их по возрастанию веса.
+     * 3. С помощью структуры непересекающихся множеств (DSU)
+     *    добавляем ребра, не образующие циклов.
      *
-     * @param graph Неориентированный взвешенный граф. Метод getEdges() должен возвращать
-     *              для каждой вершины i список объектов Edge, где Edge.vertex — индекс
-     *              смежной вершины, а Edge.weight — вес ребра.
-     * @return Список ребер MST, отсортированный в порядке включения (не обязательно по весу).
+     * @param graph ориентированный или неориентированный взвешенный граф
+     * @return список ребер MST в порядке добавления
      */
     fun buildMST(graph: Graph): List<MSTEdge> {
-        // 1) Число вершин
-        val n = graph.getVertexes().size
+        val n = graph.getVertexes().size  // количество вершин
 
-        // 2) Собираем все уникальные ребра (u < v), чтобы не дублировать каждое дважды
+        // Составляем список всех уникальных ребер (u < v) — чтобы не дублировать
         val allEdges = mutableListOf<MSTEdge>()
         graph.getEdges().forEachIndexed { u, adjList ->
-            for (edge in adjList) {
+            adjList.forEach { edge ->
                 val v = edge.vertex
-                val w = edge.weight  // предполагается, что Edge хранит вес
                 if (u < v) {
-                    allEdges.add(MSTEdge(u, v, w))
+                    allEdges.add(MSTEdge(u, v, edge.weight))
                 }
             }
         }
 
-        // 3) Сортируем список ребер по возрастанию веса
+        // Сортируем по весу, от лёгких к тяжёлым
         allEdges.sortBy { it.weight }
 
-        // 4) Инициализируем структуру непересекающихся множеств (DSU) для n вершин
+        // Инициализируем DSU для проверки циклов
         val dsu = DisjointSet(n)
-
-        // 5) Алгоритм Крускала: перебираем ребра по ранжиру, добавляем, если не создаёт цикл
         val mst = mutableListOf<MSTEdge>()
+
+        // Основной цикл Крускала: добавляем ребро, если оно соединяет разные компоненты
         for (e in allEdges) {
             if (dsu.find(e.u) != dsu.find(e.v)) {
                 dsu.union(e.u, e.v)
@@ -57,39 +61,43 @@ class MinimumSpanningTree {
             }
         }
 
-        // 6) Возвращаем список ребер минимального остова
         return mst
     }
 
     /**
-     * Внутренний класс для структуры непересекающихся множеств (Union-Find) с путём сжатия
-     * и ранговой эвристикой.
+     * Внутренняя реализация структуры непересекающихся множеств (Union-Find)
+     * с путевым сжатием и ранговой эвристикой.
      */
-    private class DisjointSet(n: Int) {
-        private val parent = IntArray(n) { it }
-        private val rank   = IntArray(n) { 0 }
+    private class DisjointSet(size: Int) {
+        private val parent = IntArray(size) { it }  // изначально каждый элемент в своём множестве
+        private val rank = IntArray(size) { 0 }     // ранговая эвристика
 
-        /** Найти корневого представителя множества, применяя сжатие пути. */
+        /**
+         * Находит корень x и одновременно сжимает путь для оптимизации.
+         */
         fun find(x: Int): Int {
             if (parent[x] != x) {
-                parent[x] = find(parent[x])
+                parent[x] = find(parent[x])  // сжимаем путь
             }
             return parent[x]
         }
 
-        /** Объединить множества, в которые входят x и y, по ранговой эвристике. */
+        /**
+         * Объединяет множества x и y по рангу,
+         * чтобы дерево оставалось максимально плоским.
+         */
         fun union(x: Int, y: Int) {
-            val rx = find(x)
-            val ry = find(y)
-            if (rx == ry) return  // уже в одном множестве
+            val rootX = find(x)
+            val rootY = find(y)
+            if (rootX == rootY) return    // уже в одном множестве
 
-            // Присоединяем более «низкий» ранг к более «высокому»
+            // Присоединяем менее «тяжёлое» дерево к более «тяжёлому»
             when {
-                rank[rx] < rank[ry] -> parent[rx] = ry
-                rank[ry] < rank[rx] -> parent[ry] = rx
+                rank[rootX] < rank[rootY] -> parent[rootX] = rootY
+                rank[rootX] > rank[rootY] -> parent[rootY] = rootX
                 else -> {
-                    parent[ry] = rx
-                    rank[rx]++
+                    parent[rootY] = rootX
+                    rank[rootX]++
                 }
             }
         }

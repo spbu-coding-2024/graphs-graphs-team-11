@@ -1,9 +1,10 @@
-package org.spb.project.presenter
+package org.spb.project
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.spb.project.common.Graph
 import org.spb.project.common.GraphType
+import org.spb.project.presenter.MinimumSpanningTree
 
 class MinimumSpanningTreeTest {
 

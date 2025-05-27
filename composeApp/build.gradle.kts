@@ -1,9 +1,12 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.jetbrains.dokka.gradle.DokkaTask
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+
+    id("org.jetbrains.dokka") version "1.9.0"
 }
 
 kotlin {
@@ -35,10 +38,6 @@ kotlin {
 
         val desktopTest by getting {
             dependencies {
-                // Kotlin test-библиотеки
-                implementation(kotlin("test"))
-                implementation(kotlin("test-junit5"))
-
                 // JUnit 5
                 implementation("org.junit.jupiter:junit-jupiter-api:5.9.2")
                 runtimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.2")
@@ -47,7 +46,22 @@ kotlin {
     }
 }
 
-tasks.withType<Test> {
+// Объявляем таск Dokka внутри блока tasks
+tasks.named<DokkaTask>("dokkaHtml") {
+    // Куда выводить HTML
+    outputDirectory.set(buildDir.resolve("dokka/html"))
+
+    dokkaSourceSets {
+        named("commonMain") {
+            displayName.set("Общее API")
+        }
+        named("desktopMain") {
+            displayName.set("Desktop API")
+        }
+    }
+}
+
+tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
 
