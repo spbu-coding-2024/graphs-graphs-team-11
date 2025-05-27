@@ -35,10 +35,6 @@ kotlin {
 
         val desktopTest by getting {
             dependencies {
-                // Kotlin test-библиотеки
-                implementation(kotlin("test"))
-                implementation(kotlin("test-junit5"))
-
                 // JUnit 5
                 implementation("org.junit.jupiter:junit-jupiter-api:5.9.2")
                 runtimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.2")
@@ -47,7 +43,7 @@ kotlin {
     }
 }
 
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
 

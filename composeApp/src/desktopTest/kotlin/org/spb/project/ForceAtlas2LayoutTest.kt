@@ -1,9 +1,11 @@
-package org.spb.project.presenter
+package org.spb.project
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
 import org.spb.project.common.Graph
 import org.spb.project.common.GraphType
+import org.spb.project.presenter.ForceAtlas2Layout
+import org.spb.project.presenter.MinimumSpanningTree
 import kotlin.math.round
 import kotlin.math.sqrt
 
