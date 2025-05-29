@@ -28,6 +28,11 @@ import androidx.compose.ui.input.pointer.pointerMoveFilter
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.*
 import org.spb.project.common.GraphType
 import org.spb.project.presenter.CanvasPresenter
@@ -64,6 +69,7 @@ fun DraggableCanvasView(
     var hoverIndex    by remember { mutableStateOf<Int?>(null) }
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     val selectedIndex by rememberUpdatedState(presenter.selectedNodeIndex)
+    val textMeasurer = rememberTextMeasurer()
 
     // 2) Zoom + анимация
     val targetZoom   by rememberUpdatedState(presenter.zoom)
@@ -204,6 +210,24 @@ fun DraggableCanvasView(
                 val radius = node.radius * z * scale
                 val color  = if (idx == selectedIndex) Color.Yellow else Color(node.color)
                 drawCircle(color, center = (node.offset - base) * z, radius = radius)
+                val fontSize = (radius * 0.4f).coerceAtLeast(4f) // Минимум 4 пикселя
+                val circleCenter = (node.offset - base) * z
+                val textLayout = textMeasurer.measure(
+                    text = AnnotatedString((idx + 1).toString()),
+                    style = TextStyle(
+                        color = Color.White,
+                        fontSize = fontSize.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+                val textOffset = Offset(
+                    circleCenter.x - textLayout.size.width / 2,
+                    circleCenter.y - textLayout.size.height / 2
+                )
+                drawText(
+                    textLayoutResult = textLayout,
+                    topLeft = textOffset
+                )
             }
 
             // 3) рисуем стрелочные головки
