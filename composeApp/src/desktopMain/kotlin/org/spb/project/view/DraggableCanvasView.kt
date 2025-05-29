@@ -393,6 +393,16 @@ private fun GraphPanel(
                 Button(onClick = { presenter.deleteSelectedNode() }, enabled = presenter.selectedNodeIndex != null,
                     colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)) { Text("Удалить выбранную", color = Color.White) }
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { presenter.changeSelectedNodeRadius(5f) },
+                    enabled = presenter.selectedNodeIndex != null
+                ) { Text("Увеличить размер") }
+                Button(
+                    onClick = { presenter.changeSelectedNodeRadius(-5f) },
+                    enabled = presenter.selectedNodeIndex != null
+                ) { Text("Уменьшить размер") }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = showArrows, onCheckedChange = onToggleArrows)
                 Text("Отображать стрелки")

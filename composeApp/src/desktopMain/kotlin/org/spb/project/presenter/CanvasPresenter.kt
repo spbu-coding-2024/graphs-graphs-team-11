@@ -427,4 +427,16 @@ class CanvasPresenter {
         memorizedVertex = selectedNodeIndex ?: 0
     }
 
+    /**
+     * Изменение радиуса для вершины
+     */
+    fun changeSelectedNodeRadius(delta: Float) {
+        selectedNodeIndex?.let { idx ->
+            val oldRadius = nodesList[idx].radius
+            // Минимальный радиус 5f, максимальный, например, 100f
+            val newRadius = (oldRadius + delta).coerceIn(5f, 100f)
+            nodesList[idx] = nodesList[idx].copy(radius = newRadius)
+        }
+    }
+
 }
