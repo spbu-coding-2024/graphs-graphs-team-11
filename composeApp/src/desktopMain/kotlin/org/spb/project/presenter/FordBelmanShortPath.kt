@@ -41,7 +41,7 @@ class FordBelmanShortPath(graph: Graph, start: Int, finish: Int){
         distances[startVertex] = 0
         for (i in 0..n-2){
             var j = 0
-            while (j < edges.size-1){
+            while (j < edges.size){
                 var e = 0
                 while (e < edges[j].size){
                     if (distances[j] != inf){
@@ -56,9 +56,9 @@ class FordBelmanShortPath(graph: Graph, start: Int, finish: Int){
             }
         }
         var j = 0
-        while (j < edges.size-1){
+        while (j < edges.size){
             var e = 0
-            while (e < edges[j].size-1){
+            while (e < edges[j].size){
                 if (distances[j] != inf){
                     if (distances[j] + edges[j][e].weight < distances[edges[j][e].vertex]){
                         return -inf
