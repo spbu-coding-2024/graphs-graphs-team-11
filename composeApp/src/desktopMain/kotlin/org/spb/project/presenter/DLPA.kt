@@ -62,7 +62,7 @@ class DLPA (graph: Graph){
                 /*
                     В оригинальной версии алгоритма, метка выбирается случайным образом
                     из меток встречающихся с наибольшей частотой
-                    В данной реализации, выбирается метка с самым последним номером с списке меток
+                    в данной реализации, выбирается метка с самым последним номером с списке меток
                  */
                 for (k in neighborLabel.size-1 downTo 0){
                     if (numberLabels[k] == numberLabels.max()){
@@ -70,6 +70,7 @@ class DLPA (graph: Graph){
                             labels[j] = neighborLabel[k]
                             changed = true
                         }
+                        break
                     }
                 }
             }
