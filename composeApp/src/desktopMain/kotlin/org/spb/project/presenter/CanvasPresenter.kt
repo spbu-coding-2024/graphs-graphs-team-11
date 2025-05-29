@@ -338,9 +338,10 @@ class CanvasPresenter {
             vertexes[i].color = -vertexes[i].color
 
         }
-        nodesList.clear()
-        graph.getVertexes().forEach { v ->
-            nodesList.add(CircleNode(Offset(v.x.toFloat(), v.y.toFloat()), color = v.color))
+        val vertices = graph.getVertexes()
+        for (i in vertices.indices) {
+            val v = vertices[i]
+            nodesList[i] = nodesList[i].copy(color = v.color)
         }
         selectedNodeIndex = null
     }
@@ -381,11 +382,6 @@ class CanvasPresenter {
                 }
             }
         }
-
-        nodesList.clear()
-        graph.getVertexes().forEach { v ->
-            nodesList.add(CircleNode(Offset(v.x.toFloat(), v.y.toFloat()), color = v.color))
-        }
         selectedNodeIndex = null
     }
 
@@ -421,10 +417,6 @@ class CanvasPresenter {
             }
         }
 
-        nodesList.clear()
-        graph.getVertexes().forEach { v ->
-            nodesList.add(CircleNode(Offset(v.x.toFloat(), v.y.toFloat()), color = v.color))
-        }
         selectedNodeIndex = null
     }
 
