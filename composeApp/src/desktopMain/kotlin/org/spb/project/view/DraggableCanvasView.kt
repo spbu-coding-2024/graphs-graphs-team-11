@@ -37,6 +37,9 @@ import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
+import org.spb.project.presenter.DLPA
+import org.spb.project.presenter.FordBelmanShortPath
+import org.spb.project.presenter.SearchCycles
 
 /**
  * Canvas с поддержкой:
@@ -238,7 +241,7 @@ fun GraphScreen(presenter: CanvasPresenter) {
     var selected by remember { mutableStateOf<GraphMeta?>(null) }
     var expanded by remember { mutableStateOf(false) }
     var selectedColor by remember { mutableStateOf(Color.Blue) }
-    val radioOptions = listOf("SQL","NEO4J" )
+    val radioOptions = listOf("SQL","NEO4J", "csv")
     val (selectedOption, onOptionSelected) = remember { mutableStateOf(radioOptions[0]) }
     // Состояния чекбоксов
     var showArrows by remember { mutableStateOf(true) }
@@ -254,7 +257,7 @@ fun GraphScreen(presenter: CanvasPresenter) {
                 Row(
                     Modifier
                         .height(56.dp)
-                        .padding(start =890.dp, top = 30.dp),
+                        .padding(start =975.dp, top = 20.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     RadioButton(
@@ -292,6 +295,8 @@ fun GraphScreen(presenter: CanvasPresenter) {
                     Button(onClick = {
                         if (selectedOption == "NEO4J"){
                             selected?.let {presenter.saveNeo4jGraph(it.id)}
+                        }else if (selectedOption == "csv"){
+                            selected?.let {presenter.saveCSVGraph()}
                         }
                         else{
                             selected?.let { presenter.saveGraph(it.id) }}
@@ -307,10 +312,12 @@ fun GraphScreen(presenter: CanvasPresenter) {
                             graphList.forEach { meta -> DropdownMenuItem(onClick = { selected = meta; expanded = false }) { Text("Граф #${meta.id} (${meta.type})") } }
                         }
                     }
-                    Button(onClick = {if (selectedOption == "NEO4J"){
-                        selected?.let { presenter.loadNeo4jGraph(it.id)}
-                    }
-                        else{selected?.let { presenter.loadGraph(it.id) } }}, enabled = selected != null) { Text("Загрузить") }
+                    Button(onClick = {
+                        if (selectedOption == "NEO4J"){
+                            selected?.let { presenter.loadNeo4jGraph(it.id)}
+                        } else if (selectedOption == "csv"){
+                            selected?.let {presenter.loadCSVGraph()}
+                        } else{selected?.let { presenter.loadGraph(it.id) } }}, enabled = selected != null) { Text("Загрузить") }
                     Button(onClick = {
                         val newId = GraphDbHelper.getNextGraphId()
                         presenter.saveGraph(newId)
@@ -363,6 +370,29 @@ fun GraphScreen(presenter: CanvasPresenter) {
         }
     }
     RadioButtonSingleSelection()
+
+    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            Modifier
+                .padding(start =1075.dp, top = 116.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = { presenter.dlpa()  }
+            ) { Text("Применить DLPA") }
+            Button(
+                onClick = { presenter.searchCyles()  },
+                enabled = presenter.selectedNodeIndex != null
+            ) { Text("Найти циклы") }
+            Button(
+                onClick = { presenter.FordBelman()  },
+                enabled = presenter.selectedNodeIndex != null
+            ) { Text("Форд-Белман") }
+            Button(
+                onClick = { presenter.MemorizeSelectedNode()  },
+                enabled = presenter.selectedNodeIndex != null
+            ) { Text("Запомнить выбранную") }
+        }
+    }
 
 }
 
