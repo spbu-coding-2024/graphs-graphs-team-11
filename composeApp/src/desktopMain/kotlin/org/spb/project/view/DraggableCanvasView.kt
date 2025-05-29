@@ -1,7 +1,10 @@
 package org.spb.project.view
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -29,6 +32,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.*
+import androidx.compose.ui.zIndex
 import org.spb.project.common.GraphType
 import org.spb.project.presenter.CanvasPresenter
 import org.spb.project.presenter.GraphDbHelper
@@ -237,164 +241,257 @@ fun DraggableCanvasView(
 
 @Composable
 fun GraphScreen(presenter: CanvasPresenter) {
+    val selectedBg = Color(0xFF7C1DFF)
+    val unselectedBg = Color(0xFFF5F5F5)
+    val selectedText = Color.White
+    val unselectedText = Color.Black
+
+    var graphsExpanded by remember { mutableStateOf(false) }
+    var algosExpanded by remember { mutableStateOf(false) }
+    var loadExpanded by remember { mutableStateOf(false) }
+
     var graphList by remember { mutableStateOf<List<GraphMeta>>(emptyList()) }
-    var selected by remember { mutableStateOf<GraphMeta?>(null) }
-    var expanded by remember { mutableStateOf(false) }
+    var selectedGraph by remember { mutableStateOf<GraphMeta?>(null) }
+    var expandedDropdown by remember { mutableStateOf(false) }
+    var selectedOption by remember { mutableStateOf("SQL") }
     var selectedColor by remember { mutableStateOf(Color.Blue) }
-    val radioOptions = listOf("SQL","NEO4J", "csv")
-    val (selectedOption, onOptionSelected) = remember { mutableStateOf(radioOptions[0]) }
-    // Состояния чекбоксов
     var showArrows by remember { mutableStateOf(true) }
     var showWeights by remember { mutableStateOf(true) }
+    val radioOptions = listOf("SQL", "NEO4J", "csv")
 
     LaunchedEffect(Unit) {
         graphList = GraphDbHelper.getAllGraphs()
     }
-    @Composable
-    fun RadioButtonSingleSelection(modifier: Modifier = Modifier) {
-        Column {
-            radioOptions.forEach { text ->
-                Row(
-                    Modifier
-                        .height(56.dp)
-                        .padding(start =975.dp, top = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(
-                        modifier =Modifier.selectable(
-                            selected = (text == selectedOption),
-                            onClick = {onOptionSelected(text)}
-                        ),
-                        selected = (text == selectedOption),
-                        onClick = null
 
-                    )
-                    Text(
-                        text = text,
-                        modifier = Modifier.padding(start = 16.dp)
-                    )
-                }
-            }
-        }
-    }
-
-    Column(
-        Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Card(
-            shape = RoundedCornerShape(8.dp),
-            elevation = 4.dp,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { presenter.addCircle(selectedColor.toArgb()) }) { Text("Добавить вершину") }
-                    Button(onClick = {
-                        if (selectedOption == "NEO4J"){
-                            selected?.let {presenter.saveNeo4jGraph(it.id)}
-                        }else if (selectedOption == "csv"){
-                            selected?.let {presenter.saveCSVGraph()}
-                        }
-                        else{
-                            selected?.let { presenter.saveGraph(it.id) }}
-                    }, enabled = selected != null) { Text("Сохранить") }
-                    Button(onClick = { presenter.paintAll(selectedColor.toArgb()) }) { Text("Окрасить все") }
-                    Button(onClick = { presenter.paintSelectedNode(selectedColor.toArgb()) }, enabled = presenter.selectedNodeIndex != null) { Text("Окрасить выбранную") }
-                    Button(onClick = { presenter.deleteSelectedNode() }, enabled = presenter.selectedNodeIndex != null, colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)) { Text("Удалить выбранную", color = Color.White) }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Box {
-                        Button(onClick = { expanded = true }) { Text(selected?.let { "Граф #${it.id}" } ?: "Выбрать граф") }
-                        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                            graphList.forEach { meta -> DropdownMenuItem(onClick = { selected = meta; expanded = false }) { Text("Граф #${meta.id} (${meta.type})") } }
-                        }
-                    }
-                    Button(onClick = {
-                        if (selectedOption == "NEO4J"){
-                            selected?.let { presenter.loadNeo4jGraph(it.id)}
-                        } else if (selectedOption == "csv"){
-                            selected?.let {presenter.loadCSVGraph()}
-                        } else{selected?.let { presenter.loadGraph(it.id) } }}, enabled = selected != null) { Text("Загрузить") }
-                    Button(onClick = {
-                        val newId = GraphDbHelper.getNextGraphId()
-                        presenter.saveGraph(newId)
-                        graphList = GraphDbHelper.getAllGraphs()
-                        selected = graphList.firstOrNull { it.id == newId }
-                    }) { Text("Сохранить как новый") }
-                    Button(onClick = {
-                        selected?.let { GraphDbHelper.deleteGraph(it.id); graphList = GraphDbHelper.getAllGraphs(); selected = null }
-                    }, enabled = selected != null, colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)) { Text("Удалить граф", color = Color.White) }
-                    ColorDropdown(current = selectedColor, onSelect = { selectedColor = it })
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { presenter.applyForceAtlas2Layout() }) { Text("Применить ForceAtlas2") }
-                    Button(
-                        onClick = { presenter.highlightStronglyConnectedComponents() },
-                        enabled = presenter.graphType == GraphType.ORIENTED
-                    ) { Text("Выделить SCC")
-                    }
-                    Button(
-                        onClick = { presenter.highlightMinimumSpanningTree()  },
-                        enabled = presenter.graphType == GraphType.WEIGHTED_NON_ORIENTED
-                    ) { Text("Построить MST") }
-                }
-                // Чекбоксы для управления отображением
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Checkbox(checked = showArrows, onCheckedChange = { showArrows = it })
-                    Text(text = "Отображать стрелки")
-                    Spacer(modifier = Modifier.width(24.dp))
-                    Checkbox(checked = showWeights, onCheckedChange = { showWeights = it })
-                    Text(text = "Отображать веса")
-                }
-            }
-        }
-
-        Card(
-            shape = RoundedCornerShape(8.dp),
-            elevation = 4.dp,
+    Box(Modifier.fillMaxSize()) {
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+                .fillMaxSize()
+                .background(Color(0xFFEFEFEF))
+                .zIndex(0f)
         ) {
-            Box(Modifier.background(Color(0xFFEFEFEF))) {
-                DraggableCanvasView(
+            DraggableCanvasView(
+                presenter = presenter,
+                showArrows = showArrows,
+                showWeights = showWeights,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+                .zIndex(1f)
+        ) {
+            Card(
+                shape = RoundedCornerShape(8.dp),
+                elevation = 4.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            graphsExpanded = !graphsExpanded
+                            if (graphsExpanded) { algosExpanded = false; loadExpanded = false }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            backgroundColor = if (graphsExpanded) selectedBg else unselectedBg,
+                            contentColor = if (graphsExpanded) selectedText else unselectedText
+                        )
+                    ) { Text("Граф") }
+
+                    Button(
+                        onClick = {
+                            algosExpanded = !algosExpanded
+                            if (algosExpanded) { graphsExpanded = false; loadExpanded = false }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            backgroundColor = if (algosExpanded) selectedBg else unselectedBg,
+                            contentColor = if (algosExpanded) selectedText else unselectedText
+                        )
+                    ) { Text("Алгоритмы") }
+
+                    Button(
+                        onClick = {
+                            loadExpanded = !loadExpanded
+                            if (loadExpanded) { graphsExpanded = false; algosExpanded = false }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            backgroundColor = if (loadExpanded) selectedBg else unselectedBg,
+                            contentColor = if (loadExpanded) selectedText else unselectedText
+                        )
+                    ) { Text("Загрузка") }
+                }
+            }
+
+            AnimatedVisibility(
+                visible = graphsExpanded,
+                enter = expandVertically(expandFrom = Alignment.Top),
+                exit = shrinkVertically(shrinkTowards = Alignment.Top)
+            ) {
+                GraphPanel(
                     presenter = presenter,
                     showArrows = showArrows,
+                    onToggleArrows = { showArrows = it },
                     showWeights = showWeights,
-                    modifier = Modifier.fillMaxSize()
+                    onToggleWeights = { showWeights = it },
+                    selectedColor = selectedColor,
+                    onSelectColor = { selectedColor = it }
+                )
+            }
+
+            AnimatedVisibility(
+                visible = algosExpanded,
+                enter = expandVertically(expandFrom = Alignment.Top),
+                exit = shrinkVertically(shrinkTowards = Alignment.Top)
+            ) {
+                AlgoPanel(presenter = presenter)
+            }
+
+            AnimatedVisibility(
+                visible = loadExpanded,
+                enter = expandVertically(expandFrom = Alignment.Top),
+                exit = shrinkVertically(shrinkTowards = Alignment.Top)
+            ) {
+                LoadPanel(
+                    graphList = graphList,
+                    selectedGraph = selectedGraph,
+                    expandedDropdown = expandedDropdown,
+                    onToggleDropdown = { expandedDropdown = it },
+                    onSelectGraph = { selectedGraph = it },
+                    radioOptions = radioOptions,
+                    selectedOption = selectedOption,
+                    onOptionSelected = { selectedOption = it },
+                    presenter = presenter,
+                    onRefreshList = { graphList = GraphDbHelper.getAllGraphs() }
                 )
             }
         }
     }
-    RadioButtonSingleSelection()
+}
 
-    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            Modifier
-                .padding(start =1075.dp, top = 116.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-                onClick = { presenter.dlpa()  }
-            ) { Text("Применить DLPA") }
-            Button(
-                onClick = { presenter.searchCyles()  },
-                enabled = presenter.selectedNodeIndex != null
-            ) { Text("Найти циклы") }
-            Button(
-                onClick = { presenter.FordBelman()  },
-                enabled = presenter.selectedNodeIndex != null
-            ) { Text("Форд-Белман") }
-            Button(
-                onClick = { presenter.MemorizeSelectedNode()  },
-                enabled = presenter.selectedNodeIndex != null
-            ) { Text("Запомнить выбранную") }
+@Composable
+private fun GraphPanel(
+    presenter: CanvasPresenter,
+    showArrows: Boolean,
+    onToggleArrows: (Boolean) -> Unit,
+    showWeights: Boolean,
+    onToggleWeights: (Boolean) -> Unit,
+    selectedColor: Color,
+    onSelectColor: (Color) -> Unit
+) {
+    Card(shape = RoundedCornerShape(8.dp), elevation = 4.dp, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { presenter.addCircle(selectedColor.toArgb()) }) { Text("Добавить вершину") }
+                Button(onClick = { presenter.paintAll(selectedColor.toArgb()) }) { Text("Окрасить все") }
+                Button(onClick = { presenter.paintSelectedNode(selectedColor.toArgb()) }, enabled = presenter.selectedNodeIndex != null) { Text("Окрасить выбранную") }
+                Button(onClick = { presenter.deleteSelectedNode() }, enabled = presenter.selectedNodeIndex != null,
+                    colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)) { Text("Удалить выбранную", color = Color.White) }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = showArrows, onCheckedChange = onToggleArrows)
+                Text("Отображать стрелки")
+                Checkbox(checked = showWeights, onCheckedChange = onToggleWeights)
+                Text("Отображать веса")
+            }
+            ColorDropdown(current = selectedColor, onSelect = onSelectColor)
         }
     }
-
 }
+
+@Composable
+private fun AlgoPanel(presenter: CanvasPresenter) {
+    Card(shape = RoundedCornerShape(8.dp), elevation = 4.dp, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { presenter.applyForceAtlas2Layout() }) { Text("ForceAtlas2") }
+                Button(onClick = { presenter.highlightStronglyConnectedComponents() }, enabled = presenter.graphType == GraphType.ORIENTED) { Text("SCC") }
+                Button(onClick = { presenter.highlightMinimumSpanningTree() }, enabled = presenter.graphType == GraphType.WEIGHTED_NON_ORIENTED) { Text("MST") }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { presenter.dlpa() }) { Text("DLPA") }
+                Button(onClick = { presenter.searchCyles() }, enabled = presenter.selectedNodeIndex != null) { Text("Найти циклы") }
+                Button(onClick = { presenter.FordBelman() }, enabled = presenter.selectedNodeIndex != null) { Text("Форд-Белман") }
+                Button(onClick = { presenter.MemorizeSelectedNode() }, enabled = presenter.selectedNodeIndex != null) { Text("Запомнить вершину") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LoadPanel(
+    graphList: List<GraphMeta>,
+    selectedGraph: GraphMeta?,
+    expandedDropdown: Boolean,
+    onToggleDropdown: (Boolean) -> Unit,
+    onSelectGraph: (GraphMeta?) -> Unit,
+    radioOptions: List<String>,
+    selectedOption: String,
+    onOptionSelected: (String) -> Unit,
+    presenter: CanvasPresenter,
+    onRefreshList: () -> Unit
+) {
+    Card(shape = RoundedCornerShape(8.dp), elevation = 4.dp, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Источник данных:")
+            radioOptions.forEach { opt ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = opt == selectedOption, onClick = { onOptionSelected(opt) })
+                    Text(opt)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = {
+                    when (selectedOption) {
+                        "NEO4J" -> selectedGraph?.let { presenter.saveNeo4jGraph(it.id) }
+                        "csv" -> selectedGraph?.let { presenter.saveCSVGraph() }
+                        else -> selectedGraph?.let { presenter.saveGraph(it.id) }
+                    }
+                }, enabled = selectedGraph != null) { Text("Сохранить") }
+                Button(onClick = {
+                    when (selectedOption) {
+                        "NEO4J" -> selectedGraph?.let { presenter.loadNeo4jGraph(it.id) }
+                        "csv" -> selectedGraph?.let { presenter.loadCSVGraph() }
+                        else -> selectedGraph?.let { presenter.loadGraph(it.id) }
+                    }
+                }, enabled = selectedGraph != null) { Text("Загрузить") }
+                Button(onClick = {
+                    val newId = GraphDbHelper.getNextGraphId()
+                    presenter.saveGraph(newId)
+                    onRefreshList()
+                    GraphDbHelper.getAllGraphs().firstOrNull { it.id == newId }?.let { onSelectGraph(it) }
+                }) { Text("Сохранить как новый") }
+                Button(onClick = {
+                    selectedGraph?.let {
+                        GraphDbHelper.deleteGraph(it.id)
+                        onRefreshList()
+                        onSelectGraph(null)
+                    }
+                }, enabled = selectedGraph != null, colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)) {
+                    Text("Удалить", color = Color.White)
+                }
+            }
+            Box {
+                Button(onClick = { onToggleDropdown(true) }) {
+                    Text(selectedGraph?.let { "Граф #${it.id}" } ?: "Выбрать граф")
+                }
+                DropdownMenu(expanded = expandedDropdown, onDismissRequest = { onToggleDropdown(false) }) {
+                    graphList.forEach { meta ->
+                        DropdownMenuItem(onClick = { onSelectGraph(meta); onToggleDropdown(false) }) {
+                            Text("Граф #${meta.id} (${meta.type})")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 @Composable
 fun ColorDropdown(
