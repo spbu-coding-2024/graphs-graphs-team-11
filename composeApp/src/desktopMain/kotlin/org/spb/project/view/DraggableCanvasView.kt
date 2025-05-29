@@ -414,6 +414,18 @@ private fun GraphPanel(
                     enabled = presenter.selectedNodeIndex != null
                 ) { Text("Уменьшить размер") }
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = {
+                    presenter.scaleAllNodeRadii(1.1f)
+                }) {
+                    Text("Увеличить все вершины")
+                }
+                Button(onClick = {
+                    presenter.scaleAllNodeRadii(0.9f)
+                }) {
+                    Text("Уменьшить все вершины")
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = showArrows, onCheckedChange = onToggleArrows)
                 Text("Отображать стрелки")
