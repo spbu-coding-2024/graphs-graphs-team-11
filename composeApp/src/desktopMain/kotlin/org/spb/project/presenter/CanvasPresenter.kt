@@ -9,6 +9,7 @@ import org.spb.project.common.GraphType
 import org.spb.project.common.Vertex
 import org.spb.project.model.CircleNode
 import kotlin.random.Random
+import kotlin.math.min
 
 class CanvasPresenter {
     private var graph by mutableStateOf(Graph(GraphType.NON_ORIENTED))
@@ -33,6 +34,7 @@ class CanvasPresenter {
     // Текущий выбранный узел (или null)
     var selectedNodeIndex by mutableStateOf<Int?>(null)
         private set
+    var memorizedVertex = 0
 
     private var activeDragIndex by mutableStateOf<Int?>(null)
     var zoom by mutableStateOf(1f); private set
@@ -141,6 +143,7 @@ class CanvasPresenter {
         }
         selectedNodeIndex = null
     }
+
     fun loadNeo4jGraph(graphId: Int = 1){
         graph = neo4jDb.readGraph(graphId)
         nodesList.clear()
@@ -159,6 +162,30 @@ class CanvasPresenter {
         }
         neo4jDb.saveGraphNeo4j(graph, graphId)
 
+    }
+
+
+    fun loadCSVGraph(){
+        var csv = RWCSV()
+        graph = csv.read()
+        nodesList.clear()
+        graph.getVertexes().forEach { v ->
+            nodesList.add(CircleNode(Offset(v.x.toFloat(), v.y.toFloat()), color = v.color))
+        }
+        selectedNodeIndex = null
+
+    }
+    
+    fun saveCSVGraph(){
+        var csv = RWCSV()
+        nodesList.forEachIndexed { i, node ->
+            val v = graph.getVertexes()[i]
+            v.x = node.offset.x.toDouble()
+            v.y = node.offset.y.toDouble()
+            v.color = node.color
+        }
+        csv.write(graph)
+        
     }
 
     /**
@@ -283,6 +310,129 @@ class CanvasPresenter {
                 .firstOrNull { it.vertex == edge.u }
                 ?.color = mstEdgeColor
         }
+    }
+
+    /**
+     * Цвета сообществ определяются примерно согласно формуле:
+     * CNT - количествоо сообществ
+     * L - номер сообщества
+     * A = FF
+     * R = 255 * 65536
+     * G = L*255/CNT
+     * B = 255 - L*255/CNT
+     */
+    fun dlpa(){
+        val dlpa = DLPA(graph)
+        var colors = mutableSetOf<Int>()
+        dlpa.labelPropagation()
+        for (elem in dlpa.labels) {
+            colors.add(elem)
+        }
+        var vertexes = graph.getVertexes()
+        for (i in 0..vertexes.size-1){
+            var colorCNST = dlpa.labels[i]
+            //vertexes[i].color = ((colorCNST*255/(colors.size.toDouble())).toInt()* 65536)
+            vertexes[i].color = 255 * 65536
+            vertexes[i].color += ((colorCNST*255/(colors.size.toDouble())).toInt() * 256)
+            vertexes[i].color += (255 - (colorCNST*255/(colors.size.toDouble())).toInt())
+            vertexes[i].color = -vertexes[i].color
+
+        }
+        nodesList.clear()
+        graph.getVertexes().forEach { v ->
+            nodesList.add(CircleNode(Offset(v.x.toFloat(), v.y.toFloat()), color = v.color))
+        }
+        selectedNodeIndex = null
+    }
+
+    /**
+     * Цвета циклов определяются примерно согласно формуле:
+     * CNT - количество циклов
+     * L - номер цикла
+     * A = FF
+     * R = L*255/CNT
+     * G = L*255/CNT
+     * B = 255 - L*255/CNT
+     */
+    fun searchCyles(){
+        var choosenvertex = selectedNodeIndex ?: 0
+        var cycles = SearchCycles(graph,choosenvertex).search()
+        var edges = graph.getEdges()
+        val defaultEdgeColor = 0xFF888888.toInt()
+        graph.getEdges().forEach { list ->
+            list.forEach { it.color = defaultEdgeColor }
+        }
+        var EdgeColor = 0xFFFF0000.toInt()
+        var colors = -1
+        for (cycle in cycles) {
+            colors += 1
+            EdgeColor = ((colors*255/(cycles.size.toDouble())).toInt()* 65536)
+            EdgeColor += ((colors*255/(cycles.size.toDouble())).toInt() * 256)
+            EdgeColor += (255 - (colors*255/(cycles.size.toDouble())).toInt())
+            EdgeColor = -EdgeColor
+            var start = choosenvertex
+            for (vertex in cycle) {
+                for (i in 0..edges[start].size-1){
+                    if (edges[start][i].vertex == vertex){
+                        edges[start][i].color = EdgeColor
+                        start = vertex
+                        break
+                    }
+                }
+            }
+        }
+
+        nodesList.clear()
+        graph.getVertexes().forEach { v ->
+            nodesList.add(CircleNode(Offset(v.x.toFloat(), v.y.toFloat()), color = v.color))
+        }
+        selectedNodeIndex = null
+    }
+
+    fun FordBelman(){
+        var choosenvertex = selectedNodeIndex ?: 0
+
+        var edges = graph.getEdges()
+
+        var path = FordBelmanShortPath(graph, memorizedVertex, choosenvertex).getShortestPath() ?: mutableListOf<Int>()
+
+        val defaultEdgeColor = 0xFF888888.toInt()
+        graph.getEdges().forEach { list ->
+            list.forEach { it.color = defaultEdgeColor }
+        }
+
+        val EdgeColor = 0xFFFF0000.toInt()
+
+        if (path.size > 1) {
+            for (vertex in 0..path.size-2) {
+                var minimumEdgeWeight = 2147483647
+                for (edgeID in 0..edges[path[vertex]].size-1){
+                    if (edges[path[vertex]][edgeID].vertex == path[vertex+1]){
+                        minimumEdgeWeight = min(minimumEdgeWeight, edges[path[vertex]][edgeID].weight)
+                    }
+                }
+                for (edge in edges[path[vertex]]){
+                    if (edge.vertex == path[vertex+1]){
+                        if (edge.weight == minimumEdgeWeight){
+                            edge.color = EdgeColor
+                        }
+                    }
+                }
+            }
+        }
+
+        nodesList.clear()
+        graph.getVertexes().forEach { v ->
+            nodesList.add(CircleNode(Offset(v.x.toFloat(), v.y.toFloat()), color = v.color))
+        }
+        selectedNodeIndex = null
+    }
+
+    /**
+     * Запоминает номер выбранной вершины, по умолчанию 0
+     */
+    fun MemorizeSelectedNode(){
+        memorizedVertex = selectedNodeIndex ?: 0
     }
 
 }
