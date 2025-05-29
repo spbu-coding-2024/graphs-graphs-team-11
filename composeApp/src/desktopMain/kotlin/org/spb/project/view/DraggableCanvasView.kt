@@ -499,7 +499,17 @@ fun ColorDropdown(
     onSelect: (Color) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val options = listOf(Color.Blue to "Синий", Color.Red to "Красный", Color.Green to "Зелёный")
+    val options = listOf(
+        Color.Blue to "Синий",
+        Color.Red to "Красный",
+        Color.Green to "Зелёный",
+        Color.Yellow to "Жёлтый",
+        Color.Cyan to "Голубой",
+        Color.Magenta to "Пурпурный",
+        Color.Gray to "Серый",
+        Color.Black to "Чёрный",
+        Color(0xFFFFA500) to "Оранжевый"
+    )
 
     Box(Modifier.padding(8.dp)) {
         Button(onClick = { expanded = true }) { Text(options.first { it.first == current }.second) }
