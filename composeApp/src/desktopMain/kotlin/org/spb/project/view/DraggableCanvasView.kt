@@ -236,6 +236,17 @@ fun DraggableCanvasView(
                 }
             }
         }
+        // Текст текущего масштаба в правом нижнем углу
+        Text(
+            text = "Масштаб: ${(presenter.zoom * 100).toInt()}%",
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(8.dp)
+                .background(Color(0xAAFFFFFF), shape = RoundedCornerShape(4.dp))
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+            fontSize = 14.sp,
+            color = Color.Black
+        )
     }
 }
 
@@ -392,6 +403,28 @@ private fun GraphPanel(
                 Button(onClick = { presenter.paintSelectedNode(selectedColor.toArgb()) }, enabled = presenter.selectedNodeIndex != null) { Text("Окрасить выбранную") }
                 Button(onClick = { presenter.deleteSelectedNode() }, enabled = presenter.selectedNodeIndex != null,
                     colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)) { Text("Удалить выбранную", color = Color.White) }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { presenter.changeSelectedNodeRadius(5f) },
+                    enabled = presenter.selectedNodeIndex != null
+                ) { Text("Увеличить размер") }
+                Button(
+                    onClick = { presenter.changeSelectedNodeRadius(-5f) },
+                    enabled = presenter.selectedNodeIndex != null
+                ) { Text("Уменьшить размер") }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = {
+                    presenter.scaleAllNodeRadii(1.1f)
+                }) {
+                    Text("Увеличить все вершины")
+                }
+                Button(onClick = {
+                    presenter.scaleAllNodeRadii(0.9f)
+                }) {
+                    Text("Уменьшить все вершины")
+                }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = showArrows, onCheckedChange = onToggleArrows)
