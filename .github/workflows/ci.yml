@@ -1,13 +1,6 @@
 name: CI
 
-on:
-  push:
-    branches:
-      - main
-      - master
-  pull_request:
-    branches:
-      - '**'
+on: [ push, pull_request ]
 
 jobs:
   build-and-test:
@@ -39,3 +32,11 @@ jobs:
 
       - name: Build & run tests
         run: ./gradlew clean build --no-daemon
+  start-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "checks"
+        uses: actions/checkout@v4
+ 
+      - name: "tests"
+        run: ./gradlew allTests
