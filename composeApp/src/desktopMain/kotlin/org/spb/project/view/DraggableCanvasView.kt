@@ -236,6 +236,17 @@ fun DraggableCanvasView(
                 }
             }
         }
+        // Текст текущего масштаба в правом нижнем углу
+        Text(
+            text = "Масштаб: ${(presenter.zoom * 100).toInt()}%",
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(8.dp)
+                .background(Color(0xAAFFFFFF), shape = RoundedCornerShape(4.dp))
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+            fontSize = 14.sp,
+            color = Color.Black
+        )
     }
 }
 
