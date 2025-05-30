@@ -63,7 +63,8 @@ class DijkstraAlgorithm(src:Int, target:Int, graph: Graph){
             val d = curr[0]
             val u = curr[1]
             if (u == targetNode){
-                print(targetNode)
+
+                println(dist[targetNode])
                 break}
             if (d != dist[u]) continue
             for (neighbor in adj[u]){
