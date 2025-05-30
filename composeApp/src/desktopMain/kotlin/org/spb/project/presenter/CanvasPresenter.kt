@@ -114,6 +114,7 @@ class CanvasPresenter {
             }
             selectedNodeIndex = null
         }
+        memorizedVertex = 0
     }
 
 
@@ -144,6 +145,7 @@ class CanvasPresenter {
             nodesList.add(CircleNode(Offset(v.x.toFloat(), v.y.toFloat()), color = v.color))
         }
         selectedNodeIndex = null
+        memorizedVertex = 0
     }
 
     fun loadNeo4jGraph(graphId: Int = 1){
@@ -153,6 +155,7 @@ class CanvasPresenter {
             nodesList.add(CircleNode(Offset(v.x.toFloat(), v.y.toFloat()), color = v.color))
         }
         selectedNodeIndex = null
+        memorizedVertex = 0
     }
 
     fun saveNeo4jGraph(graphId:Int = 1){
@@ -175,6 +178,7 @@ class CanvasPresenter {
             nodesList.add(CircleNode(Offset(v.x.toFloat(), v.y.toFloat()), color = v.color))
         }
         selectedNodeIndex = null
+        memorizedVertex = 0
 
     }
     
@@ -354,7 +358,7 @@ class CanvasPresenter {
      * L - номер цикла
      * A = FF
      * R = L*255/CNT
-     * G = L*255/CNT
+     * G = 255
      * B = 255 - L*255/CNT
      */
     fun searchCyles(){
@@ -370,7 +374,7 @@ class CanvasPresenter {
         for (cycle in cycles) {
             colors += 1
             EdgeColor = ((colors*255/(cycles.size.toDouble())).toInt()* 65536)
-            EdgeColor += ((colors*255/(cycles.size.toDouble())).toInt() * 256)
+            EdgeColor += 255*256
             EdgeColor += (255 - (colors*255/(cycles.size.toDouble())).toInt())
             EdgeColor = -EdgeColor
             var start = choosenvertex
@@ -412,6 +416,9 @@ class CanvasPresenter {
     fun DijkstraAlgorithm(){
         val edges = graph.getEdges()
         val selectedVertex = selectedNodeIndex?:0
+        if (memorizedVertex > nodesList.size) {
+            memorizedVertex = 0
+        }
         val dijkstra = DijkstraAlgorithm(memorizedVertex, selectedVertex, graph)
        val shortPath = dijkstra.dijkstra(graph, dijkstra.arrayEdge())
         val defaultEdgeColor = 0xFF888888.toInt()
@@ -436,6 +443,10 @@ class CanvasPresenter {
     }
     fun FordBelman(){
         var choosenvertex = selectedNodeIndex ?: 0
+
+        if (memorizedVertex > nodesList.size) {
+            memorizedVertex = 0
+        }
 
         var edges = graph.getEdges()
 
