@@ -420,13 +420,15 @@ class CanvasPresenter {
         if (memorizedVertex > nodesList.size) {
             memorizedVertex = 0
         }
-        val dijkstra = DijkstraAlgorithm(memorizedVertex, selectedVertex, graph)
-       val shortPath = dijkstra.dijkstra(graph, dijkstra.arrayEdge())
-
         val defaultEdgeColor = 0xFF888888.toInt()
         graph.getEdges().forEach { list ->
             list.forEach { it.color = defaultEdgeColor }
         }
+        val dijkstra = DijkstraAlgorithm(memorizedVertex, selectedVertex, graph)
+       val shortPath = dijkstra.dijkstra(graph, dijkstra.arrayEdge())
+
+
+
         val edgeColor = 0xFF00FF00.toInt()
         val path = shortPath.second
         if (path.size < 2) return
