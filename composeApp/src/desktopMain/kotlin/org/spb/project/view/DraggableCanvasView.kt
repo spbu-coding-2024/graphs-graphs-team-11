@@ -457,12 +457,9 @@ private fun AlgoPanel(presenter: CanvasPresenter) {
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)){
                 Button(onClick = {presenter.bridgeSearchAlg()}){Text("Поиск мостов")}
-                Button(onClick = {presenter.clearEdges()}){Text("Очистить ребра")}
                 Button(onClick = {presenter.DijkstraAlgorithm()} , enabled = presenter.selectedNodeIndex!=null) {Text("Алгоритм Дейкстры")}
                 Spacer(Modifier.width(16.dp))
-                Text(
-                    text = presenter.result
-                )
+
             }
 
         }
