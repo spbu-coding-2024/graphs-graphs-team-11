@@ -66,6 +66,7 @@ object GraphDbHelper {
                     populateSampleGraph7()
                     populateSampleGraph8()
                     populateSampleGraph9()
+                    populateSampleGraph10()
                 }
             }
         }
@@ -488,5 +489,40 @@ object GraphDbHelper {
         // сохраняем граф с идентификатором 9
         saveGraph(g, 9)
     }
+
+    private fun populateSampleGraph10() {
+        // создаём не взвешенный неориентированный граф
+        val g = Graph(GraphType.ORIENTED)
+        val rnd = kotlin.random.Random(42)
+
+        // границы области разброса
+        val maxX = 800.0
+        val maxY = 600.0
+
+        // 1) создаём 15 случайно разбросанных вершин
+        repeat(15) {
+            val x = rnd.nextDouble() * maxX
+            val y = rnd.nextDouble() * maxY
+            g.addVertex(x, y, DEFAULT_VERTEX_COLOR)
+        }
+
+        // 2) добавляем по 2 случайных неориентированных ребра для каждой вершины
+        val n = g.getVertexes().size
+        repeat(n) { i ->
+            repeat(2) {
+                var j = rnd.nextInt(n)
+                if (j == i) {
+                    // если выпал тот же индекс, выбираем следующий по модулю
+                    j = (j + 1) % n
+                }
+                // добавляем неориентированное ребро без веса
+                g.addEdge(i, j, 0,DEFAULT_EDGE_COLOR)
+            }
+        }
+
+        // сохраняем граф с идентификатором 11
+        saveGraph(g, 10)
+    }
+
 
 }
