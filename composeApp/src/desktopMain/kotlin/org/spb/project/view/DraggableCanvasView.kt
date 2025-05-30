@@ -452,6 +452,11 @@ private fun AlgoPanel(presenter: CanvasPresenter) {
                 Button(onClick = { presenter.FordBelman() }, enabled = presenter.selectedNodeIndex != null) { Text("Форд-Белман") }
                 Button(onClick = { presenter.MemorizeSelectedNode() }, enabled = presenter.selectedNodeIndex != null) { Text("Запомнить вершину") }
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)){
+                Button(onClick = {presenter.DijkstraAlgorithm()} , enabled = presenter.selectedNodeIndex!=null) {Text("Алгоритм Дейскры")}
+                Button(onClick = {presenter.bridgeSearchAlg()}){Text("Поиск мостов")}
+                Button(onClick = {presenter.clearEdges()}){Text("Очистить ребра")}
+            }
         }
     }
 }

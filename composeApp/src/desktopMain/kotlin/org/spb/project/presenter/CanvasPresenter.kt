@@ -8,6 +8,8 @@ import org.spb.project.common.Graph
 import org.spb.project.common.GraphType
 import org.spb.project.common.Vertex
 import org.spb.project.model.CircleNode
+import org.spb.project.presenter.algorithm.BridgeSearch
+import org.spb.project.presenter.algorithm.DijkstraAlgorithm
 import kotlin.random.Random
 import kotlin.math.min
 
@@ -384,7 +386,54 @@ class CanvasPresenter {
         }
         selectedNodeIndex = null
     }
+    fun clearEdges(){
+        val defaultEdgeColor = 0xFF888888.toInt()
+        graph.getEdges().forEach { list ->
+            list.forEach { it.color = defaultEdgeColor }
+        }
+    }
+    fun bridgeSearchAlg(){
+        val defaultEdgeColor = 0xFF888888.toInt()
+        graph.getEdges().forEach { list ->
+            list.forEach { it.color = defaultEdgeColor }
+        }
+        val edges = graph.getEdges()
+        val bridge = BridgeSearch(graph)
+        val bridges = bridge.bridge()
+        val edgeColor = 0xFFFFFF00.toInt()
+         for (values in bridges){
+             edges[values.first].forEach { edge ->
+                 if (edge.vertex == values.second){
+                     edge.color = edgeColor
+                 }
+             }
+         }
+    }
+    fun DijkstraAlgorithm(){
+        val edges = graph.getEdges()
+        val selectedVertex = selectedNodeIndex?:0
+        val dijkstra = DijkstraAlgorithm(memorizedVertex, selectedVertex, graph)
+       val shortPath = dijkstra.dijkstra(graph, dijkstra.arrayEdge())
+        val defaultEdgeColor = 0xFF888888.toInt()
+        graph.getEdges().forEach { list ->
+            list.forEach { it.color = defaultEdgeColor }
+        }
+        val edgeColor = 0xFF00FF00.toInt()
+        if (shortPath.second.size>1){
+            for (vertex in 0..shortPath.second.size-2){
+                for (edge in edges[shortPath.second[vertex]]){
+                    if (edge.vertex == shortPath.second[vertex+1]){
+                        edge.color = edgeColor
+                    }
+                }
+            }
+        }
 
+
+
+
+        selectedNodeIndex = null
+    }
     fun FordBelman(){
         var choosenvertex = selectedNodeIndex ?: 0
 
