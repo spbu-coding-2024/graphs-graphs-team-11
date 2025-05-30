@@ -41,6 +41,7 @@ class CanvasPresenter {
     private var activeDragIndex by mutableStateOf<Int?>(null)
     var zoom by mutableStateOf(1f); private set
     var pan by mutableStateOf(Offset.Zero); private set
+    var result by mutableStateOf("")
 
     init {
         loadGraph()
@@ -421,24 +422,24 @@ class CanvasPresenter {
         }
         val dijkstra = DijkstraAlgorithm(memorizedVertex, selectedVertex, graph)
        val shortPath = dijkstra.dijkstra(graph, dijkstra.arrayEdge())
+
         val defaultEdgeColor = 0xFF888888.toInt()
         graph.getEdges().forEach { list ->
             list.forEach { it.color = defaultEdgeColor }
         }
         val edgeColor = 0xFF00FF00.toInt()
-        if (shortPath.second.size>1){
-            for (vertex in 0..shortPath.second.size-2){
-                for (edge in edges[shortPath.second[vertex]]){
-                    if (edge.vertex == shortPath.second[vertex+1]){
-                        edge.color = edgeColor
-                    }
-                }
-            }
+        val path = shortPath.second
+        if (path.size < 2) return
+        for (i in 0 until path.size - 1) {
+            val u = path[i]
+            val v = path[i + 1]
+            val edgeForward = edges[u].firstOrNull { it.vertex == v }
+            edgeForward?.color = edgeColor
+            val edgeBackward = edges[v].firstOrNull { it.vertex == u }
+            edgeBackward?.color = edgeColor
+            result = "(${shortPath.first})"
+
         }
-
-
-
-
         selectedNodeIndex = null
     }
     fun FordBelman(){

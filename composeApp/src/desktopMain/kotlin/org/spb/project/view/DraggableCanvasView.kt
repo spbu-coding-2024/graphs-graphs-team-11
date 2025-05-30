@@ -268,6 +268,7 @@ fun GraphScreen(presenter: CanvasPresenter) {
     var selectedColor by remember { mutableStateOf(Color.Blue) }
     var showArrows by remember { mutableStateOf(true) }
     var showWeights by remember { mutableStateOf(true) }
+
     val radioOptions = listOf("SQL", "NEO4J", "csv")
 
     LaunchedEffect(Unit) {
@@ -395,6 +396,7 @@ private fun GraphPanel(
     selectedColor: Color,
     onSelectColor: (Color) -> Unit
 ) {
+
     Card(shape = RoundedCornerShape(8.dp), elevation = 4.dp, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -439,6 +441,7 @@ private fun GraphPanel(
 
 @Composable
 private fun AlgoPanel(presenter: CanvasPresenter) {
+
     Card(shape = RoundedCornerShape(8.dp), elevation = 4.dp, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -453,13 +456,18 @@ private fun AlgoPanel(presenter: CanvasPresenter) {
                 Button(onClick = { presenter.MemorizeSelectedNode() }, enabled = presenter.selectedNodeIndex != null) { Text("Запомнить вершину") }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)){
-                Button(onClick = {presenter.DijkstraAlgorithm()} , enabled = presenter.selectedNodeIndex!=null) {Text("Алгоритм Дейскры")}
                 Button(onClick = {presenter.bridgeSearchAlg()}){Text("Поиск мостов")}
                 Button(onClick = {presenter.clearEdges()}){Text("Очистить ребра")}
+                Button(onClick = {presenter.DijkstraAlgorithm()} , enabled = presenter.selectedNodeIndex!=null) {Text("Алгоритм Дейкстры")}
+                Spacer(Modifier.width(16.dp))
+                Text(
+                    text = presenter.result
+                )
             }
+
+        }
         }
     }
-}
 
 @Composable
 private fun LoadPanel(
