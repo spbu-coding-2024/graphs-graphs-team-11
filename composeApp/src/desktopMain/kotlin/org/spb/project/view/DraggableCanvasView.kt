@@ -498,14 +498,14 @@ private fun LoadPanel(
                         "csv" -> selectedGraph?.let { presenter.saveCSVGraph() }
                         else -> selectedGraph?.let { presenter.saveGraph(it.id) }
                     }
-                }, enabled = selectedGraph != null) { Text("Сохранить") }
+                }, enabled = (selectedGraph != null || selectedOption == "csv")) { Text("Сохранить") }
                 Button(onClick = {
                     when (selectedOption) {
                         "NEO4J" -> selectedGraph?.let { presenter.loadNeo4jGraph(it.id) }
                         "csv" -> selectedGraph?.let { presenter.loadCSVGraph() }
                         else -> selectedGraph?.let { presenter.loadGraph(it.id) }
                     }
-                }, enabled = selectedGraph != null) { Text("Загрузить") }
+                }, enabled = (selectedGraph != null || selectedOption == "csv")) { Text("Загрузить") }
                 Button(onClick = {
                     val newId = GraphDbHelper.getNextGraphId()
                     presenter.saveGraph(newId)
