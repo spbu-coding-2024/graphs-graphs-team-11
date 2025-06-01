@@ -297,29 +297,49 @@ class CanvasPresenter {
         }
     }
 
+    /**
+     * Алгоритм Крускала для построения минимального остовного дерева (MST)
+     */
     fun highlightMinimumSpanningTree() {
-        // 1) Строим MST
+        // 1) Строим MST (список рёбер u-v)
         val mst: List<MinimumSpanningTree.MSTEdge> = mstBuilder.buildMST(graph)
 
-        // 2) Сбрасываем цвета всех рёбер к дефолтному
-        val defaultEdgeColor = 0xFF888888.toInt()
-        graph.getEdges().forEach { list ->
-            list.forEach { it.color = defaultEdgeColor }
+        // 2) Реконструируем списки смежности, оставляя только МСТ-рёбра
+        val vertexCount = graph.getVertexes().size
+        // создаём новые пустые списки для каждой вершины:
+        val newAdjLists: MutableList<MutableList<Edge>> = MutableList(vertexCount) { mutableListOf() }
+
+        // цвет для МСТ-рёбер (например, красный)
+        val mstEdgeColor = 0xFFFF0000.toInt()
+
+        // для каждого ребра из mst добавляем два «направления»
+        for (e in mst) {
+            newAdjLists[e.u].add(Edge(vertex = e.v, weight = e.weight, color = mstEdgeColor))
+            newAdjLists[e.v].add(Edge(vertex = e.u, weight = e.weight, color = mstEdgeColor))
         }
 
-        // 3) Устанавливаем цвет MST-рёбер
-        val mstEdgeColor = 0xFFFF0000.toInt() // красный
-        mst.forEach { edge ->
-            // граф ненаправленный, поэтому надо раскрасить оба направления
-            graph.getEdges()[edge.u]
-                .firstOrNull { it.vertex == edge.v }
-                ?.color = mstEdgeColor
+        // 3) Заменяем старые списки смежности на новые
+        //    Предполагаем, что graph.getEdges() возвращает MutableList<MutableList<Edge>>
+        graph.getEdges().clear()
+        newAdjLists.forEach { adj ->
+            graph.getEdges().add(adj)
+        }
 
-            graph.getEdges()[edge.v]
-                .firstOrNull { it.vertex == edge.u }
-                ?.color = mstEdgeColor
+        // 4) Перезапускаем Layout ForceAtlas2 несколько итераций, чтобы MST «расправился» на плоскости
+        //    (Если просто один шаг – может не успеть распрямиться в дерево)
+        repeat(100) {
+            forceAtlas.applyLayout(graph)
+        }
+
+        // 5) Обновляем UI-координаты каждой вершины из модели в nodesList
+        val vertices = graph.getVertexes()
+        for (i in vertices.indices) {
+            val v = vertices[i]
+            // v.x и v.y содержат координаты после работы ForceAtlas2
+            nodesList[i] = nodesList[i].copy(offset = Offset(v.x.toFloat(), v.y.toFloat()))
         }
     }
+
 
     /**
      * Цвета сообществ определяются примерно согласно формуле:
@@ -513,5 +533,7 @@ class CanvasPresenter {
             nodesList[idx] = node.copy(radius = newR)
         }
     }
+
+
 
 }
