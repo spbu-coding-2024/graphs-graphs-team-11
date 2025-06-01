@@ -3,10 +3,7 @@ package org.spb.project.presenter.ui
 import androidx.compose.runtime.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntSize
-import org.spb.project.model.common.Edge
-import org.spb.project.model.common.Graph
-import org.spb.project.model.common.GraphType
-import org.spb.project.model.common.Vertex
+import org.spb.project.model.common.*
 import org.spb.project.model.ui.CircleNode
 import org.spb.project.presenter.filereader.RWCSV
 import org.spb.project.presenter.algorithm.*
@@ -20,7 +17,7 @@ class CanvasPresenter {
     private val db = GraphDbHelper
 
     private val neo4jDb = neo4jDb("bolt://localhost:7687", "neo4j", "lolkekcheb")
-    private val forceAtlas = ForceAtlas2Layout()
+    private var forceAtlas = ForceAtlas2Layout()
     private val sccFinder = StronglyConnectedComponents()
     // Добавляем поле для MST-алгоритма
     private val mstBuilder = MinimumSpanningTree()
@@ -257,7 +254,7 @@ class CanvasPresenter {
     fun applyForceAtlas2Layout() {
         // 1) применяем раскладку к модели
         forceAtlas.applyLayout(graph)
-        // 2) обновляем UI-координаты
+        // 2) обновляем UI-координаты (ваш существующий код)
         val vertices = graph.getVertexes()
         for (i in vertices.indices) {
             val v = vertices[i]
@@ -534,6 +531,28 @@ class CanvasPresenter {
         }
     }
 
+    /**
+     * Вызывать после изменения любого из параметров, чтобы пересоздать экземпляр.
+     */
+    fun updateForceAtlasParams(
+        repulsion: Double,
+        attraction: Double,
+        damping: Double,
+        gravity: Double,
+        maxDisplacement: Double
+    ) {
+        // Пересоздаём экземпляр ForceAtlas2Layout с новыми константами
+        forceAtlas = ForceAtlas2Layout(repulsionConstant = repulsion, attractionConstant = attraction, damping = damping, gravity = gravity, maxDisplacement = maxDisplacement)
+    }
 
+    fun getForceAtlasParams(): ForceAtlasParams {
+        return ForceAtlasParams(
+            repulsion = forceAtlas.getRepulsionConstant(),
+            attraction = forceAtlas.getAttractionConstant(),
+            damping = forceAtlas.getDamping(),
+            gravity = forceAtlas.getGravity(),
+            maxDisplacement = forceAtlas.getMaxDisplacement()
+        )
+    }
 
 }

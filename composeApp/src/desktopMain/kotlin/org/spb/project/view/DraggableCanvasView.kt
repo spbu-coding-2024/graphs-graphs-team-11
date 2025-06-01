@@ -13,6 +13,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.forEachGesture
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +29,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.pointerMoveFilter
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.zIndex
 import org.spb.project.model.common.GraphType
@@ -57,20 +59,20 @@ fun DraggableCanvasView(
     paddingDp: Dp = 50.dp
 ) {
     // 1) Состояния и данные
-    val nodes         = presenter.circleNodes
-    val edges         = presenter.edges
-    var hoverIndex    by remember { mutableStateOf<Int?>(null) }
+    val nodes = presenter.circleNodes
+    val edges = presenter.edges
+    var hoverIndex by remember { mutableStateOf<Int?>(null) }
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     val selectedIndex by rememberUpdatedState(presenter.selectedNodeIndex)
 
     // 2) Zoom + анимация
-    val targetZoom   by rememberUpdatedState(presenter.zoom)
+    val targetZoom by rememberUpdatedState(presenter.zoom)
     val animatedZoom by animateFloatAsState(targetValue = targetZoom, animationSpec = tween(200))
-    val z            = animatedZoom
+    val z = animatedZoom
 
     // 3) Панорама и padding
-    val pan       = presenter.pan
-    val density   = LocalDensity.current
+    val pan = presenter.pan
+    val density = LocalDensity.current
     val paddingPx = with(density) { paddingDp.toPx() }
 
     // 4) Для onDragForNode
@@ -183,13 +185,13 @@ fun DraggableCanvasView(
                     drawLine(Color(e.color), from, to, strokeWidth = 2f * z)
                     if (showArrows && (presenter.graphType == GraphType.ORIENTED || presenter.graphType == GraphType.WEIGHTED_ORIENTED)) {
                         val angle = atan2(to.y - from.y, to.x - from.x)
-                        val asz   = 10f * z
-                        val aang  = (PI/6).toFloat()
+                        val asz = 10f * z
+                        val aang = (PI / 6).toFloat()
                         val p = Path().apply {
                             moveTo(to.x, to.y)
-                            lineTo(to.x - asz*cos(angle-aang), to.y - asz*sin(angle-aang))
+                            lineTo(to.x - asz * cos(angle - aang), to.y - asz * sin(angle - aang))
                             moveTo(to.x, to.y)
-                            lineTo(to.x - asz*cos(angle+aang), to.y - asz*sin(angle+aang))
+                            lineTo(to.x - asz * cos(angle + aang), to.y - asz * sin(angle + aang))
                         }
                         arrowHeads += p to Color(e.color)
                     }
@@ -198,9 +200,9 @@ fun DraggableCanvasView(
 
             // 2) рисуем узлы
             nodes.forEachIndexed { idx, node ->
-                val scale  = if (idx == hoverIndex) 1.2f else 1f
+                val scale = if (idx == hoverIndex) 1.2f else 1f
                 val radius = node.radius * z * scale
-                val color  = if (idx == selectedIndex) Color.Yellow else Color(node.color)
+                val color = if (idx == selectedIndex) Color.Yellow else Color(node.color)
                 drawCircle(color, center = (node.offset - base) * z, radius = radius)
             }
 
@@ -217,7 +219,7 @@ fun DraggableCanvasView(
             edges.forEachIndexed { i, list ->
                 val from = (nodes[i].offset - base) * z
                 list.forEach { e ->
-                    val to  = (nodes[e.vertex].offset - base) * z
+                    val to = (nodes[e.vertex].offset - base) * z
                     val mid = Offset((from.x + to.x) / 2f, (from.y + to.y) / 2f)
                     val xDp = with(density) { mid.x.toDp() }
                     val yDp = with(density) { mid.y.toDp() }
@@ -302,7 +304,9 @@ fun GraphScreen(presenter: CanvasPresenter) {
                     Button(
                         onClick = {
                             graphsExpanded = !graphsExpanded
-                            if (graphsExpanded) { algosExpanded = false; loadExpanded = false }
+                            if (graphsExpanded) {
+                                algosExpanded = false; loadExpanded = false
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(
                             backgroundColor = if (graphsExpanded) selectedBg else unselectedBg,
@@ -313,7 +317,9 @@ fun GraphScreen(presenter: CanvasPresenter) {
                     Button(
                         onClick = {
                             algosExpanded = !algosExpanded
-                            if (algosExpanded) { graphsExpanded = false; loadExpanded = false }
+                            if (algosExpanded) {
+                                graphsExpanded = false; loadExpanded = false
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(
                             backgroundColor = if (algosExpanded) selectedBg else unselectedBg,
@@ -324,7 +330,9 @@ fun GraphScreen(presenter: CanvasPresenter) {
                     Button(
                         onClick = {
                             loadExpanded = !loadExpanded
-                            if (loadExpanded) { graphsExpanded = false; algosExpanded = false }
+                            if (loadExpanded) {
+                                graphsExpanded = false; algosExpanded = false
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(
                             backgroundColor = if (loadExpanded) selectedBg else unselectedBg,
@@ -396,9 +404,14 @@ private fun GraphPanel(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { presenter.addCircle(selectedColor.toArgb()) }) { Text("Добавить вершину") }
                 Button(onClick = { presenter.paintAll(selectedColor.toArgb()) }) { Text("Окрасить все") }
-                Button(onClick = { presenter.paintSelectedNode(selectedColor.toArgb()) }, enabled = presenter.selectedNodeIndex != null) { Text("Окрасить выбранную") }
-                Button(onClick = { presenter.deleteSelectedNode() }, enabled = presenter.selectedNodeIndex != null,
-                    colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)) { Text("Удалить выбранную", color = Color.White) }
+                Button(
+                    onClick = { presenter.paintSelectedNode(selectedColor.toArgb()) },
+                    enabled = presenter.selectedNodeIndex != null
+                ) { Text("Окрасить выбранную") }
+                Button(
+                    onClick = { presenter.deleteSelectedNode() }, enabled = presenter.selectedNodeIndex != null,
+                    colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)
+                ) { Text("Удалить выбранную", color = Color.White) }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
@@ -435,30 +448,167 @@ private fun GraphPanel(
 
 @Composable
 private fun AlgoPanel(presenter: CanvasPresenter) {
+    var showFA2Settings by remember { mutableStateOf(false) }
+    val currentParams = remember {
+        presenter.getForceAtlasParams()
+    }
 
-    Card(shape = RoundedCornerShape(8.dp), elevation = 4.dp, modifier = Modifier.fillMaxWidth()) {
+    // Локальные состояния, в которых храним текстовые представления констант:
+    var repulsionText by remember { mutableStateOf(currentParams.repulsion.toString()) }
+    var attractionText by remember { mutableStateOf(currentParams.attraction.toString()) }
+    var dampingText    by remember { mutableStateOf(currentParams.damping.toString()) }
+    var gravityText    by remember { mutableStateOf(currentParams.gravity.toString()) }
+    var maxDispText    by remember { mutableStateOf(currentParams.maxDisplacement.toString()) }
+
+    Card(
+        shape = RoundedCornerShape(8.dp),
+        elevation = 4.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // 2) Первая строка с ForceAtlas2 и новой кнопкой «Настройки FA2»
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { presenter.applyForceAtlas2Layout() }) { Text("ForceAtlas2") }
-                Button(onClick = { presenter.highlightStronglyConnectedComponents() }, enabled = presenter.graphType == GraphType.ORIENTED) { Text("SCC") }
-                Button(onClick = { presenter.highlightMinimumSpanningTree() }, enabled = presenter.graphType == GraphType.WEIGHTED_NON_ORIENTED) { Text("MST") }
+                Button(onClick = {
+                    presenter.applyForceAtlas2Layout()}) {
+                    Text("ForceAtlas2")
+                }
+                Button(onClick = { showFA2Settings = true }) {
+                    Text("Настройки FA2")
+                }
+                Button(
+                    onClick = { presenter.highlightStronglyConnectedComponents() },
+                    enabled = presenter.graphType == GraphType.ORIENTED
+                ) {
+                    Text("SCC")
+                }
+                Button(
+                    onClick = { presenter.highlightMinimumSpanningTree() },
+                    enabled = presenter.graphType == GraphType.WEIGHTED_NON_ORIENTED
+                ) {
+                    Text("MST")
+                }
             }
+
+            // 3) Остальные кнопки алгоритмов
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { presenter.dlpa() }) { Text("DLPA") }
-                Button(onClick = { presenter.searchCyles() }, enabled = presenter.selectedNodeIndex != null) { Text("Найти циклы") }
-                Button(onClick = { presenter.FordBelman() }, enabled = presenter.selectedNodeIndex != null) { Text("Форд-Белман") }
-                Button(onClick = { presenter.MemorizeSelectedNode() }, enabled = presenter.selectedNodeIndex != null) { Text("Запомнить вершину") }
+                Button(
+                    onClick = { presenter.searchCyles() },
+                    enabled = presenter.selectedNodeIndex != null
+                ) {
+                    Text("Найти циклы")
+                }
+                Button(
+                    onClick = { presenter.FordBelman() },
+                    enabled = presenter.selectedNodeIndex != null
+                ) {
+                    Text("Форд-Белман")
+                }
+                Button(
+                    onClick = { presenter.MemorizeSelectedNode() },
+                    enabled = presenter.selectedNodeIndex != null
+                ) {
+                    Text("Запомнить вершину")
+                }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)){
-                Button(onClick = {presenter.bridgeSearchAlg()}){Text("Поиск мостов")}
-                Button(onClick = {presenter.DijkstraAlgorithm()} , enabled = presenter.selectedNodeIndex!=null) {Text("Алгоритм Дейкстры")}
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { presenter.bridgeSearchAlg() }) { Text("Поиск мостов") }
+                Button(
+                    onClick = { presenter.DijkstraAlgorithm() },
+                    enabled = presenter.selectedNodeIndex != null
+                ) {
+                    Text("Алгоритм Дейкстры")
+                }
                 Spacer(Modifier.width(16.dp))
-
             }
-
-        }
         }
     }
+
+    // 4) Если showFA2Settings == true, показываем AlertDialog с полями ввода
+    if (showFA2Settings) {
+        AlertDialog(
+            onDismissRequest = { showFA2Settings = false },
+            title = { Text(text = "Настройки ForceAtlas2") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Каждое поле — TextField для ввода Double-значения
+                    OutlinedTextField(
+                        value = repulsionText,
+                        onValueChange = { repulsionText = it },
+                        label = { Text("Сила отталкивания (repulsion)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
+                    )
+                    OutlinedTextField(
+                        value = attractionText,
+                        onValueChange = { attractionText = it },
+                        label = { Text("Сила притяжения (attraction)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
+                    )
+                    OutlinedTextField(
+                        value = dampingText,
+                        onValueChange = { dampingText = it },
+                        label = { Text("Демпфирование (damping)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
+                    )
+                    OutlinedTextField(
+                        value = gravityText,
+                        onValueChange = { gravityText = it },
+                        label = { Text("Гравитация (gravity)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
+                    )
+                    OutlinedTextField(
+                        value = maxDispText,
+                        onValueChange = { maxDispText = it },
+                        label = { Text("Макс. смещение (maxDisplacement)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    // 5) Пробуем распарсить введённые строки в Double
+                    val repulsionVal = repulsionText.toDoubleOrNull()
+                    val attractionVal = attractionText.toDoubleOrNull()
+                    val dampingVal    = dampingText.toDoubleOrNull()
+                    val gravityVal    = gravityText.toDoubleOrNull()
+                    val maxDispVal    = maxDispText.toDoubleOrNull()
+
+                    // Если хотя бы одно поле не удалось распарсить — просто не закрываем диалог
+                    if (repulsionVal == null || attractionVal == null ||
+                        dampingVal == null || gravityVal == null || maxDispVal == null
+                    ) {
+                        // Можно показать toast или просто ничего не делать
+                        return@Button
+                    }
+
+                    // 6) Вызываем Presenter для пересоздания forceAtlas
+                    presenter.updateForceAtlasParams(
+                        repulsion = repulsionVal,
+                        attraction = attractionVal,
+                        damping = dampingVal,
+                        gravity = gravityVal,
+                        maxDisplacement = maxDispVal
+                    )
+
+                    // Закрываем диалог
+                    showFA2Settings = false
+                }) {
+                    Text("Сохранить")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { showFA2Settings = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
+    }
+}
 
 @Composable
 private fun LoadPanel(
