@@ -3,10 +3,7 @@ package org.spb.project.presenter.ui
 import androidx.compose.runtime.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntSize
-import org.spb.project.model.common.Edge
-import org.spb.project.model.common.Graph
-import org.spb.project.model.common.GraphType
-import org.spb.project.model.common.Vertex
+import org.spb.project.model.common.*
 import org.spb.project.model.ui.CircleNode
 import org.spb.project.presenter.filereader.RWCSV
 import org.spb.project.presenter.algorithm.*
@@ -20,7 +17,7 @@ class CanvasPresenter {
     private val db = GraphDbHelper
 
     private val neo4jDb = neo4jDb("bolt://localhost:7687", "neo4j", "lolkekcheb")
-    private val forceAtlas = ForceAtlas2Layout()
+    private var forceAtlas = ForceAtlas2Layout()
     private val sccFinder = StronglyConnectedComponents()
     // Добавляем поле для MST-алгоритма
     private val mstBuilder = MinimumSpanningTree()
@@ -212,10 +209,21 @@ class CanvasPresenter {
      */
     fun onDrag(delta: Offset) {
         activeDragIndex?.let { idx ->
-            // двигаем вершину
-            nodesList[idx] = nodesList[idx].copy(offset = nodesList[idx].offset + (delta / zoom))
+            // 1) Сначала вычисляем новый Offset в «мире»
+            val oldOffset = nodesList[idx].offset
+            val newOffset = oldOffset + (delta / zoom)
+
+            // 2) Обновляем UI‐версию (CircleNode), чтобы на экране нод «уехал»
+            nodesList[idx] = nodesList[idx].copy(offset = newOffset)
+
+            // 3) Синхронизируем модельный Vertex: запишем в graph.getVertexes()[idx] новые x,y
+            //    Заметим: в модели Vertex хранит x,y как Double, но новый newOffset – это Float
+            val vertex = graph.getVertexes()[idx]
+            vertex.x = newOffset.x.toDouble()
+            vertex.y = newOffset.y.toDouble()
+
         } ?: run {
-            // двигаем канвас
+            // двигаем саму панорамную позицию
             pan -= delta / zoom
         }
     }
@@ -257,7 +265,7 @@ class CanvasPresenter {
     fun applyForceAtlas2Layout() {
         // 1) применяем раскладку к модели
         forceAtlas.applyLayout(graph)
-        // 2) обновляем UI-координаты
+        // 2) обновляем UI-координаты (ваш существующий код)
         val vertices = graph.getVertexes()
         for (i in vertices.indices) {
             val v = vertices[i]
@@ -297,29 +305,49 @@ class CanvasPresenter {
         }
     }
 
+    /**
+     * Алгоритм Крускала для построения минимального остовного дерева (MST)
+     */
     fun highlightMinimumSpanningTree() {
-        // 1) Строим MST
+        // 1) Строим MST (список рёбер u-v)
         val mst: List<MinimumSpanningTree.MSTEdge> = mstBuilder.buildMST(graph)
 
-        // 2) Сбрасываем цвета всех рёбер к дефолтному
-        val defaultEdgeColor = 0xFF888888.toInt()
-        graph.getEdges().forEach { list ->
-            list.forEach { it.color = defaultEdgeColor }
+        // 2) Реконструируем списки смежности, оставляя только МСТ-рёбра
+        val vertexCount = graph.getVertexes().size
+        // создаём новые пустые списки для каждой вершины:
+        val newAdjLists: MutableList<MutableList<Edge>> = MutableList(vertexCount) { mutableListOf() }
+
+        // цвет для МСТ-рёбер (например, красный)
+        val mstEdgeColor = 0xFFFF0000.toInt()
+
+        // для каждого ребра из mst добавляем два «направления»
+        for (e in mst) {
+            newAdjLists[e.u].add(Edge(vertex = e.v, weight = e.weight, color = mstEdgeColor))
+            newAdjLists[e.v].add(Edge(vertex = e.u, weight = e.weight, color = mstEdgeColor))
         }
 
-        // 3) Устанавливаем цвет MST-рёбер
-        val mstEdgeColor = 0xFFFF0000.toInt() // красный
-        mst.forEach { edge ->
-            // граф ненаправленный, поэтому надо раскрасить оба направления
-            graph.getEdges()[edge.u]
-                .firstOrNull { it.vertex == edge.v }
-                ?.color = mstEdgeColor
+        // 3) Заменяем старые списки смежности на новые
+        //    Предполагаем, что graph.getEdges() возвращает MutableList<MutableList<Edge>>
+        graph.getEdges().clear()
+        newAdjLists.forEach { adj ->
+            graph.getEdges().add(adj)
+        }
 
-            graph.getEdges()[edge.v]
-                .firstOrNull { it.vertex == edge.u }
-                ?.color = mstEdgeColor
+        // 4) Перезапускаем Layout ForceAtlas2 несколько итераций, чтобы MST «расправился» на плоскости
+        //    (Если просто один шаг – может не успеть распрямиться в дерево)
+        repeat(100) {
+            forceAtlas.applyLayout(graph)
+        }
+
+        // 5) Обновляем UI-координаты каждой вершины из модели в nodesList
+        val vertices = graph.getVertexes()
+        for (i in vertices.indices) {
+            val v = vertices[i]
+            // v.x и v.y содержат координаты после работы ForceAtlas2
+            nodesList[i] = nodesList[i].copy(offset = Offset(v.x.toFloat(), v.y.toFloat()))
         }
     }
+
 
     /**
      * Цвета сообществ определяются примерно согласно формуле:
@@ -512,6 +540,30 @@ class CanvasPresenter {
             val newR = (node.radius * factor).coerceIn(5f, 100f)
             nodesList[idx] = node.copy(radius = newR)
         }
+    }
+
+    /**
+     * Вызывать после изменения любого из параметров, чтобы пересоздать экземпляр.
+     */
+    fun updateForceAtlasParams(
+        repulsion: Double,
+        attraction: Double,
+        damping: Double,
+        gravity: Double,
+        maxDisplacement: Double
+    ) {
+        // Пересоздаём экземпляр ForceAtlas2Layout с новыми константами
+        forceAtlas = ForceAtlas2Layout(repulsionConstant = repulsion, attractionConstant = attraction, damping = damping, gravity = gravity, maxDisplacement = maxDisplacement)
+    }
+
+    fun getForceAtlasParams(): ForceAtlasParams {
+        return ForceAtlasParams(
+            repulsion = forceAtlas.getRepulsionConstant(),
+            attraction = forceAtlas.getAttractionConstant(),
+            damping = forceAtlas.getDamping(),
+            gravity = forceAtlas.getGravity(),
+            maxDisplacement = forceAtlas.getMaxDisplacement()
+        )
     }
 
 }

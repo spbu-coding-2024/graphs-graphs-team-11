@@ -114,4 +114,10 @@ class ForceAtlas2Layout(
             vertices[i].y += dy
         }
     }
+
+    fun getRepulsionConstant(): Double = repulsionConstant
+    fun getAttractionConstant(): Double = attractionConstant
+    fun getDamping(): Double = damping
+    fun getGravity(): Double = gravity
+    fun getMaxDisplacement(): Double = maxDisplacement
 }
