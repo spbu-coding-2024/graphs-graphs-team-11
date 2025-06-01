@@ -1,8 +1,8 @@
-package org.spb.project.presenter
+package org.spb.project.presenter.algorithm
 
-import org.spb.project.common.Graph
-import org.spb.project.common.Vertex
-import org.spb.project.common.Edge
+import org.spb.project.model.common.Graph
+import org.spb.project.model.common.Vertex
+import org.spb.project.model.common.Edge
 import kotlin.math.sqrt
 
 /**

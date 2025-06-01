@@ -1,4 +1,4 @@
-package org.spb.project.common
+package org.spb.project.model.common
 
 /**
  * Класс Graph хранит список вершин и рёбер, а также знает свой тип:

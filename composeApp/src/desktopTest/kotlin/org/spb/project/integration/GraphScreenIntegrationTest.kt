@@ -3,8 +3,8 @@ package org.spb.project.integration
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
-import org.spb.project.presenter.CanvasPresenter
-import org.spb.project.presenter.GraphDbHelper
+import org.spb.project.presenter.ui.CanvasPresenter
+import org.spb.project.presenter.database.GraphDbHelper
 
 class CanvasPresenterIntegrationTest {
 

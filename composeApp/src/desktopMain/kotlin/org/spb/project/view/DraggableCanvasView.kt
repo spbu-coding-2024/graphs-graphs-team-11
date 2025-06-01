@@ -13,8 +13,6 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.forEachGesture
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,20 +28,16 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.pointerMoveFilter
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.zIndex
-import org.spb.project.common.GraphType
-import org.spb.project.presenter.CanvasPresenter
-import org.spb.project.presenter.GraphDbHelper
-import org.spb.project.presenter.GraphMeta
+import org.spb.project.model.common.GraphType
+import org.spb.project.presenter.ui.CanvasPresenter
+import org.spb.project.presenter.database.GraphDbHelper
+import org.spb.project.model.ui.GraphMeta
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
-import org.spb.project.presenter.DLPA
-import org.spb.project.presenter.FordBelmanShortPath
-import org.spb.project.presenter.SearchCycles
 
 /**
  * Canvas с поддержкой:

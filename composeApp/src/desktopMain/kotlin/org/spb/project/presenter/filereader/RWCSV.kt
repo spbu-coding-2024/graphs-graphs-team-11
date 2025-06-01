@@ -1,9 +1,10 @@
-package org.spb.project.presenter
+package org.spb.project.presenter.filereader
 
 import java.io.File
 import java.awt.FileDialog
 import java.awt.Frame
-import org.spb.project.common.*
+import org.spb.project.model.common.Graph
+import org.spb.project.model.common.GraphType
 
 /**
  * Реализация чтения и записа графа в scv файл

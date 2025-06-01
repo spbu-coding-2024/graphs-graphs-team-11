@@ -1,6 +1,6 @@
-package org.spb.project.presenter
+package org.spb.project.presenter.algorithm
 
-import org.spb.project.common.Graph
+import org.spb.project.model.common.Graph
 
 /**
  * Алгоритм Крускала для построения минимального остовного дерева (MST)

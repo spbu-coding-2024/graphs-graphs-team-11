@@ -1,9 +1,7 @@
 package org.spb.project.presenter.algorithm
 
-import androidx.compose.runtime.internal.composableLambdaInstance
-import org.spb.project.common.Edge
-import org.spb.project.common.Graph
-import org.spb.project.common.GraphType
+import org.spb.project.model.common.Graph
+import org.spb.project.model.common.GraphType
 import kotlin.math.min
 
 open class BridgeSearch(graph: Graph){
