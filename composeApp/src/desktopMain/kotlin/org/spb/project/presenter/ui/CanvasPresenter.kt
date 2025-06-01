@@ -209,10 +209,21 @@ class CanvasPresenter {
      */
     fun onDrag(delta: Offset) {
         activeDragIndex?.let { idx ->
-            // двигаем вершину
-            nodesList[idx] = nodesList[idx].copy(offset = nodesList[idx].offset + (delta / zoom))
+            // 1) Сначала вычисляем новый Offset в «мире»
+            val oldOffset = nodesList[idx].offset
+            val newOffset = oldOffset + (delta / zoom)
+
+            // 2) Обновляем UI‐версию (CircleNode), чтобы на экране нод «уехал»
+            nodesList[idx] = nodesList[idx].copy(offset = newOffset)
+
+            // 3) Синхронизируем модельный Vertex: запишем в graph.getVertexes()[idx] новые x,y
+            //    Заметим: в модели Vertex хранит x,y как Double, но новый newOffset – это Float
+            val vertex = graph.getVertexes()[idx]
+            vertex.x = newOffset.x.toDouble()
+            vertex.y = newOffset.y.toDouble()
+
         } ?: run {
-            // двигаем канвас
+            // двигаем саму панорамную позицию
             pan -= delta / zoom
         }
     }
