@@ -1,6 +1,6 @@
 package org.spb.project
 
-import org.spb.project.presenter.CanvasPresenter
+import org.spb.project.presenter.ui.CanvasPresenter
 import org.spb.project.view.GraphScreen
 import androidx.compose.runtime.remember
 import androidx.compose.ui.window.Window

@@ -2,8 +2,8 @@ package org.spb.project.integration
 
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
-import org.spb.project.presenter.CanvasPresenter
-import org.spb.project.presenter.GraphDbHelper
+import org.spb.project.presenter.ui.CanvasPresenter
+import org.spb.project.presenter.database.GraphDbHelper
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CanvasPresenterIntegrationTests {

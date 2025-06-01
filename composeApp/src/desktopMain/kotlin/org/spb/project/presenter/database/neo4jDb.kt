@@ -1,11 +1,9 @@
-package org.spb.project.presenter
+package org.spb.project.presenter.database
 import org.neo4j.driver.AuthTokens
 import org.neo4j.driver.Driver
 import org.neo4j.driver.GraphDatabase
-import org.spb.project.common.Edge
-import org.spb.project.common.Graph
-import org.spb.project.common.GraphType
-import org.spb.project.common.Vertex
+import org.spb.project.model.common.Graph
+import org.spb.project.model.common.GraphType
 import java.lang.AutoCloseable
 
 
@@ -65,7 +63,7 @@ class neo4jDb(val uri: String?, val user: String, val password: String) : AutoCl
             }
 
     }
-    fun readGraph(graphId:Int = 1 ): Graph{
+    fun readGraph(graphId:Int = 1 ): Graph {
         val graph = Graph(GraphType.valueOf(GraphType.NON_ORIENTED.name))
 
             driver.session().use { session ->

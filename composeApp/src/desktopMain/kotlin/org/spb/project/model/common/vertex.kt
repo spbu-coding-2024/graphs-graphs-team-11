@@ -1,4 +1,4 @@
-package org.spb.project.common
+package org.spb.project.model.common
 
 /**
  * Представляет точку (вершину) в пространстве графа.

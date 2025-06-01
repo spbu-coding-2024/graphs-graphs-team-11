@@ -1,6 +1,6 @@
-package org.spb.project.presenter
+package org.spb.project.presenter.algorithm
 
-import org.spb.project.common.*
+import org.spb.project.model.common.Graph
 
 /**
  * Реализация алгоритма DLPA (Распространения меток) для поиска сообществ в графе
