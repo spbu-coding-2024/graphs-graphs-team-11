@@ -10,7 +10,7 @@ import kotlin.collections.mutableListOf
  * @param graph граф, в котором выполняем алгоритм
  * @param start вершина, у которой ищем циклы
  */
-class SearchCycles (graph: Graph, start: Int){
+class SearchCycles(graph: Graph, start: Int) {
 
 
     private val edges = graph.getEdges()
@@ -25,10 +25,10 @@ class SearchCycles (graph: Graph, start: Int){
 
     var startVertex = start
 
-    fun dfs(v: Int){
+    fun dfs(v: Int) {
 
-        if (v == startVertex){
-            if (path.isNotEmpty()){
+        if (v == startVertex) {
+            if (path.isNotEmpty()) {
                 cycles.add(mutableListOf())
                 for (elem in path) {
                     cycles.last().add(elem)
@@ -38,7 +38,7 @@ class SearchCycles (graph: Graph, start: Int){
             }
         }
 
-        if (v in visited){
+        if (v in visited) {
             return
         }
 
@@ -46,7 +46,7 @@ class SearchCycles (graph: Graph, start: Int){
         path.add(v)
 
 
-        for (neighbor in edges[v]){
+        for (neighbor in edges[v]) {
             dfs(neighbor.vertex)
         }
 
@@ -59,7 +59,7 @@ class SearchCycles (graph: Graph, start: Int){
      * @return Список циклов
      */
     fun search(): List<List<Int>> {
-        for (neighbor in edges[startVertex]){
+        for (neighbor in edges[startVertex]) {
             visited = mutableSetOf<Int>()
             path = mutableListOf<Int>()
             dfs(neighbor.vertex)
