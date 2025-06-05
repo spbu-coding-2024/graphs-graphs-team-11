@@ -19,6 +19,7 @@ class CanvasPresenter {
     private val neo4jDb = neo4jDb("bolt://localhost:7687", "neo4j", "lolkekcheb")
     private var forceAtlas = ForceAtlas2Layout()
     private val sccFinder = StronglyConnectedComponents()
+
     // Добавляем поле для MST-алгоритма
     private val mstBuilder = MinimumSpanningTree()
     val graphType: GraphType
@@ -30,8 +31,10 @@ class CanvasPresenter {
 
     // Список рёбер из модели
     val edges: List<List<Edge>> get() = graph.getEdges()
+
     // Список вершин
-    val vertexes:List<Vertex> get() = graph.getVertexes()
+    val vertexes: List<Vertex> get() = graph.getVertexes()
+
     // Текущий выбранный узел (или null)
     var selectedNodeIndex by mutableStateOf<Int?>(null)
         private set
@@ -148,7 +151,7 @@ class CanvasPresenter {
         memorizedVertex = 0
     }
 
-    fun loadNeo4jGraph(graphId: Int = 1){
+    fun loadNeo4jGraph(graphId: Int = 1) {
         graph = neo4jDb.readGraph(graphId)
         nodesList.clear()
         graph.getVertexes().forEach { v ->
@@ -158,7 +161,7 @@ class CanvasPresenter {
         memorizedVertex = 0
     }
 
-    fun saveNeo4jGraph(graphId:Int = 1){
+    fun saveNeo4jGraph(graphId: Int = 1) {
         nodesList.forEachIndexed { i, node ->
             val v = graph.getVertexes()[i]
             v.x = node.offset.x.toDouble()
@@ -170,7 +173,7 @@ class CanvasPresenter {
     }
 
 
-    fun loadCSVGraph(){
+    fun loadCSVGraph() {
         var csv = RWCSV()
         graph = csv.read()
         nodesList.clear()
@@ -181,8 +184,8 @@ class CanvasPresenter {
         memorizedVertex = 0
 
     }
-    
-    fun saveCSVGraph(){
+
+    fun saveCSVGraph() {
         var csv = RWCSV()
         nodesList.forEachIndexed { i, node ->
             val v = graph.getVertexes()[i]
@@ -191,7 +194,7 @@ class CanvasPresenter {
             v.color = node.color
         }
         csv.write(graph)
-        
+
     }
 
     /**
@@ -351,14 +354,14 @@ class CanvasPresenter {
 
     /**
      * Цвета сообществ определяются примерно согласно формуле:
-     * CNT - количествоо сообществ
+     * CNT - количество сообществ
      * L - номер сообщества
      * A = FF
-     * R = 255 * 65536
+     * R = 255
      * G = L*255/CNT
      * B = 255 - L*255/CNT
      */
-    fun dlpa(){
+    fun dlpa() {
         val dlpa = DLPA(graph)
         var colors = mutableSetOf<Int>()
         dlpa.labelPropagation()
@@ -366,12 +369,12 @@ class CanvasPresenter {
             colors.add(elem)
         }
         var vertexes = graph.getVertexes()
-        for (i in 0..vertexes.size-1){
+        for (i in 0..vertexes.size - 1) {
             var colorCNST = dlpa.labels[i]
             //vertexes[i].color = ((colorCNST*255/(colors.size.toDouble())).toInt()* 65536)
             vertexes[i].color = 255 * 65536
-            vertexes[i].color += ((colorCNST*255/(colors.size.toDouble())).toInt() * 256)
-            vertexes[i].color += (255 - (colorCNST*255/(colors.size.toDouble())).toInt())
+            vertexes[i].color += ((colorCNST * 255 / (colors.size.toDouble())).toInt() * 256)
+            vertexes[i].color += (255 - (colorCNST * 255 / (colors.size.toDouble())).toInt())
             vertexes[i].color = -vertexes[i].color
 
         }
@@ -392,9 +395,9 @@ class CanvasPresenter {
      * G = 255
      * B = 255 - L*255/CNT
      */
-    fun searchCyles(){
+    fun searchCyles() {
         var choosenvertex = selectedNodeIndex ?: 0
-        var cycles = SearchCycles(graph,choosenvertex).search()
+        var cycles = SearchCycles(graph, choosenvertex).search()
         var edges = graph.getEdges()
         val defaultEdgeColor = 0xFF888888.toInt()
         graph.getEdges().forEach { list ->
@@ -404,14 +407,14 @@ class CanvasPresenter {
         var colors = -1
         for (cycle in cycles) {
             colors += 1
-            EdgeColor = ((colors*255/(cycles.size.toDouble())).toInt()* 65536)
-            EdgeColor += 255*256
-            EdgeColor += (255 - (colors*255/(cycles.size.toDouble())).toInt())
+            EdgeColor = ((colors * 255 / (cycles.size.toDouble())).toInt() * 65536)
+            EdgeColor += 255 * 256
+            EdgeColor += (255 - (colors * 255 / (cycles.size.toDouble())).toInt())
             EdgeColor = -EdgeColor
             var start = choosenvertex
             for (vertex in cycle) {
-                for (i in 0..edges[start].size-1){
-                    if (edges[start][i].vertex == vertex){
+                for (i in 0..edges[start].size - 1) {
+                    if (edges[start][i].vertex == vertex) {
                         edges[start][i].color = EdgeColor
                         start = vertex
                         break
@@ -421,13 +424,15 @@ class CanvasPresenter {
         }
         selectedNodeIndex = null
     }
-    fun clearEdges(){
+
+    fun clearEdges() {
         val defaultEdgeColor = 0xFF888888.toInt()
         graph.getEdges().forEach { list ->
             list.forEach { it.color = defaultEdgeColor }
         }
     }
-    fun bridgeSearchAlg(){
+
+    fun bridgeSearchAlg() {
         val defaultEdgeColor = 0xFF888888.toInt()
         graph.getEdges().forEach { list ->
             list.forEach { it.color = defaultEdgeColor }
@@ -436,17 +441,18 @@ class CanvasPresenter {
         val bridge = BridgeSearch(graph)
         val bridges = bridge.bridge()
         val edgeColor = 0xFFFFFF00.toInt()
-         for (values in bridges){
-             edges[values.first].forEach { edge ->
-                 if (edge.vertex == values.second){
-                     edge.color = edgeColor
-                 }
-             }
-         }
+        for (values in bridges) {
+            edges[values.first].forEach { edge ->
+                if (edge.vertex == values.second) {
+                    edge.color = edgeColor
+                }
+            }
+        }
     }
-    fun DijkstraAlgorithm(){
+
+    fun DijkstraAlgorithm() {
         val edges = graph.getEdges()
-        val selectedVertex = selectedNodeIndex?:0
+        val selectedVertex = selectedNodeIndex ?: 0
         if (memorizedVertex > nodesList.size) {
             memorizedVertex = 0
         }
@@ -455,8 +461,7 @@ class CanvasPresenter {
             list.forEach { it.color = defaultEdgeColor }
         }
         val dijkstra = DijkstraAlgorithm(memorizedVertex, selectedVertex, graph)
-       val shortPath = dijkstra.dijkstra(graph, dijkstra.arrayEdge())
-
+        val shortPath = dijkstra.dijkstra(graph, dijkstra.arrayEdge())
 
 
         val edgeColor = 0xFF00FF00.toInt()
@@ -474,7 +479,8 @@ class CanvasPresenter {
         }
         selectedNodeIndex = null
     }
-    fun FordBelman(){
+
+    fun FordBelman() {
         var choosenvertex = selectedNodeIndex ?: 0
 
         if (memorizedVertex > nodesList.size) {
@@ -493,16 +499,16 @@ class CanvasPresenter {
         val EdgeColor = 0xFFFF0000.toInt()
 
         if (path.size > 1) {
-            for (vertex in 0..path.size-2) {
+            for (vertex in 0..path.size - 2) {
                 var minimumEdgeWeight = 2147483647
-                for (edgeID in 0..edges[path[vertex]].size-1){
-                    if (edges[path[vertex]][edgeID].vertex == path[vertex+1]){
+                for (edgeID in 0..edges[path[vertex]].size - 1) {
+                    if (edges[path[vertex]][edgeID].vertex == path[vertex + 1]) {
                         minimumEdgeWeight = min(minimumEdgeWeight, edges[path[vertex]][edgeID].weight)
                     }
                 }
-                for (edge in edges[path[vertex]]){
-                    if (edge.vertex == path[vertex+1]){
-                        if (edge.weight == minimumEdgeWeight){
+                for (edge in edges[path[vertex]]) {
+                    if (edge.vertex == path[vertex + 1]) {
+                        if (edge.weight == minimumEdgeWeight) {
                             edge.color = EdgeColor
                         }
                     }
@@ -516,7 +522,7 @@ class CanvasPresenter {
     /**
      * Запоминает номер выбранной вершины, по умолчанию 0
      */
-    fun MemorizeSelectedNode(){
+    fun MemorizeSelectedNode() {
         memorizedVertex = selectedNodeIndex ?: 0
     }
 
@@ -553,7 +559,13 @@ class CanvasPresenter {
         maxDisplacement: Double
     ) {
         // Пересоздаём экземпляр ForceAtlas2Layout с новыми константами
-        forceAtlas = ForceAtlas2Layout(repulsionConstant = repulsion, attractionConstant = attraction, damping = damping, gravity = gravity, maxDisplacement = maxDisplacement)
+        forceAtlas = ForceAtlas2Layout(
+            repulsionConstant = repulsion,
+            attractionConstant = attraction,
+            damping = damping,
+            gravity = gravity,
+            maxDisplacement = maxDisplacement
+        )
     }
 
     fun getForceAtlasParams(): ForceAtlasParams {

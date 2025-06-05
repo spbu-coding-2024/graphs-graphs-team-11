@@ -69,6 +69,8 @@ fun DraggableCanvasView(
     val targetZoom by rememberUpdatedState(presenter.zoom)
     val animatedZoom by animateFloatAsState(targetValue = targetZoom, animationSpec = tween(200))
     val z = animatedZoom
+    var sliderPosition by remember { mutableStateOf(0f) }
+    val maxZoomSpeed = 100f
 
     // 3) Панорама и padding
     val pan = presenter.pan
@@ -81,6 +83,7 @@ fun DraggableCanvasView(
     // 5) Единый base и конвертер экран→мир
     val base = pan + Offset(paddingPx, paddingPx)
     fun toWorld(pos: Offset) = pos / z + base
+
 
     Box(modifier = modifier.background(Color(0xFFEFEFEF))) {
         Canvas(
@@ -146,9 +149,9 @@ fun DraggableCanvasView(
                                     val scroll = ev.changes.firstOrNull()?.scrollDelta?.y ?: 0f
                                     if (scroll != 0f) {
                                         val factor = if (scroll > 0f)
-                                            1f / (1f + scroll / 100f)
+                                            1f / (1f + scroll / (maxZoomSpeed - sliderPosition))
                                         else
-                                            1f + (-scroll / 100f)
+                                            1f + (-scroll / (maxZoomSpeed - sliderPosition))
                                         val worldPos = toWorld(ev.changes.first().position)
                                         presenter.zoomBy(factor, worldPos)
                                         ev.changes.forEach { it.consume() }
@@ -243,6 +246,24 @@ fun DraggableCanvasView(
             fontSize = 14.sp,
             color = Color.Black
         )
+        // Ползунок изменения скорости зума
+        Column(modifier = Modifier.align(Alignment.BottomStart)) {
+            Text(text = "Скорость изменения масштаба: ${sliderPosition + 10f} %", fontSize = 15.sp)
+            Slider(
+                value = sliderPosition,
+                valueRange = 0f..90f,
+                steps = 9,
+                onValueChange = { sliderPosition = it },
+                modifier = Modifier.width(250.dp),
+                colors = SliderDefaults.colors(
+                    thumbColor = Color(0xFFB71C1C),
+                    activeTrackColor = Color(0xFFEF9A9A),
+                    inactiveTrackColor = Color(0xFF888888),
+                    inactiveTickColor = Color(0xFFFF0000),
+                    activeTickColor = Color(0xFFB71C1C)
+                )
+            )
+        }
     }
 }
 
@@ -456,9 +477,9 @@ private fun AlgoPanel(presenter: CanvasPresenter) {
     // Локальные состояния, в которых храним текстовые представления констант:
     var repulsionText by remember { mutableStateOf(currentParams.repulsion.toString()) }
     var attractionText by remember { mutableStateOf(currentParams.attraction.toString()) }
-    var dampingText    by remember { mutableStateOf(currentParams.damping.toString()) }
-    var gravityText    by remember { mutableStateOf(currentParams.gravity.toString()) }
-    var maxDispText    by remember { mutableStateOf(currentParams.maxDisplacement.toString()) }
+    var dampingText by remember { mutableStateOf(currentParams.damping.toString()) }
+    var gravityText by remember { mutableStateOf(currentParams.gravity.toString()) }
+    var maxDispText by remember { mutableStateOf(currentParams.maxDisplacement.toString()) }
 
     Card(
         shape = RoundedCornerShape(8.dp),
@@ -469,7 +490,8 @@ private fun AlgoPanel(presenter: CanvasPresenter) {
             // 2) Первая строка с ForceAtlas2 и новой кнопкой «Настройки FA2»
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = {
-                    presenter.applyForceAtlas2Layout()}) {
+                    presenter.applyForceAtlas2Layout()
+                }) {
                     Text("ForceAtlas2")
                 }
                 Button(onClick = { showFA2Settings = true }) {
@@ -574,9 +596,9 @@ private fun AlgoPanel(presenter: CanvasPresenter) {
                     // 5) Пробуем распарсить введённые строки в Double
                     val repulsionVal = repulsionText.toDoubleOrNull()
                     val attractionVal = attractionText.toDoubleOrNull()
-                    val dampingVal    = dampingText.toDoubleOrNull()
-                    val gravityVal    = gravityText.toDoubleOrNull()
-                    val maxDispVal    = maxDispText.toDoubleOrNull()
+                    val dampingVal = dampingText.toDoubleOrNull()
+                    val gravityVal = gravityText.toDoubleOrNull()
+                    val maxDispVal = maxDispText.toDoubleOrNull()
 
                     // Если хотя бы одно поле не удалось распарсить — просто не закрываем диалог
                     if (repulsionVal == null || attractionVal == null ||
@@ -636,14 +658,20 @@ private fun LoadPanel(
                 Button(onClick = {
                     when (selectedOption) {
                         "NEO4J" -> selectedGraph?.let { presenter.saveNeo4jGraph(it.id) }
-                        "csv" -> selectedGraph?.let { presenter.saveCSVGraph() }
+                        "csv" -> {
+                            presenter.saveCSVGraph()
+                        }
+
                         else -> selectedGraph?.let { presenter.saveGraph(it.id) }
                     }
                 }, enabled = (selectedGraph != null || selectedOption == "csv")) { Text("Сохранить") }
                 Button(onClick = {
                     when (selectedOption) {
                         "NEO4J" -> selectedGraph?.let { presenter.loadNeo4jGraph(it.id) }
-                        "csv" -> selectedGraph?.let { presenter.loadCSVGraph() }
+                        "csv" -> {
+                            presenter.loadCSVGraph()
+                        }
+
                         else -> selectedGraph?.let { presenter.loadGraph(it.id) }
                     }
                 }, enabled = (selectedGraph != null || selectedOption == "csv")) { Text("Загрузить") }
