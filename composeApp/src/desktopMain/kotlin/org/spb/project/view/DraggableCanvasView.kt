@@ -7,12 +7,9 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.gestures.forEachGesture
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
@@ -27,8 +24,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.pointerMoveFilter
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.KeyboardType
@@ -115,8 +112,8 @@ fun DraggableCanvasView(
             }
 
             // 2) Обработка перетаскивания (drag):
-            //    - Если начат drag по узлу, меняем его координаты;
-            //    - Иначе — панорамируем Canvas.
+            //    Если начат drag по узлу, меняем его координаты;
+            //    Иначе — панорамируем Canvas.
             .pointerInput(pan, z) {
                 detectDragGestures(onDragStart = { down ->
                     val world = toWorld(down)
@@ -157,24 +154,22 @@ fun DraggableCanvasView(
             // 4) Обработка колесика мыши и touchpad-scroll для изменения масштаба:
             //    Инвертируем логику (прокрутка внутрь = увеличение масштаба).
             .pointerInput(Unit) {
-                forEachGesture {
-                    awaitPointerEventScope {
-                        while (true) {
-                            val ev = awaitPointerEvent()
-                            if (ev.type == PointerEventType.Scroll) {
-                                val scroll = ev.changes.firstOrNull()?.scrollDelta?.y ?: 0f
-                                if (scroll != 0f) {
-                                    // Рассчитаем фактор зума с учётом текущей позиции ползунка
-                                    val factor = if (scroll > 0f) 1f / (1f + scroll / (maxZoomSpeed - sliderPosition))
-                                    else 1f + (-scroll / (maxZoomSpeed - sliderPosition))
-                                    // Точка, относительно которой будет меняться масштаб
-                                    val worldPos = toWorld(ev.changes.first().position)
-                                    presenter.zoomBy(factor, worldPos)
-                                    ev.changes.forEach { it.consume() }
-                                }
-                            } else {
-                                break
+                awaitEachGesture {
+                    while (true) {
+                        val ev = awaitPointerEvent()
+                        if (ev.type == PointerEventType.Scroll) {
+                            val scroll = ev.changes.firstOrNull()?.scrollDelta?.y ?: 0f
+                            if (scroll != 0f) {
+                                // Рассчитаем фактор зума с учётом текущей позиции ползунка
+                                val factor = if (scroll > 0f) 1f / (1f + scroll / (maxZoomSpeed - sliderPosition))
+                                else 1f + (-scroll / (maxZoomSpeed - sliderPosition))
+                                // Точка, относительно которой будет меняться масштаб
+                                val worldPos = toWorld(ev.changes.first().position)
+                                presenter.zoomBy(factor, worldPos)
+                                ev.changes.forEach { it.consume() }
                             }
+                        } else {
+                            break
                         }
                     }
                 }
@@ -182,17 +177,18 @@ fun DraggableCanvasView(
 
             // 5) Отслеживаем движение курсора для hover-эффекта:
             //    Если курсор над узлом, увеличиваем его.
-            .pointerMoveFilter(onMove = { pos ->
-                val world = toWorld(pos)
+            .onPointerEvent(PointerEventType.Move) { it ->
+                val world = toWorld(it.changes.first().position)
                 hoverIndex = nodes.indexOfFirst {
                     (it.offset - world).getDistance() < it.radius
                 }.takeIf { it != -1 }
-                false
-            }, onExit = {
+            }
+            .onPointerEvent(PointerEventType.Enter) {
+            }
+            .onPointerEvent(PointerEventType.Exit) {
                 hoverIndex = null
-                false
-            })) {
-            // --- РИСОВКА ВЕСОВ РЁБЕР (если включено) или стрелочных головок собираются в отдельный список ---
+            }) {
+            // Рисовка весов рёбер (если включено) или стрелочных головок собираются в отдельный список
             val arrowHeads = mutableListOf<Pair<Path, Color>>()
 
             // 1) Рисуем все рёбра графа
@@ -239,7 +235,7 @@ fun DraggableCanvasView(
             }
         }
 
-        // --- OVERLAY: Text для весов рёбер (если нужно) ---
+        // Text для весов рёбер (если нужно)
         if (showWeights && (presenter.graphType == GraphType.WEIGHTED_ORIENTED || presenter.graphType == GraphType.WEIGHTED_NON_ORIENTED)) {
             edges.forEachIndexed { i, list ->
                 // Позиция начала ребра
@@ -259,7 +255,7 @@ fun DraggableCanvasView(
             }
         }
 
-        // --- Отображаем текущий процент масштаба в правом нижнем углу ---
+        // Отображаем текущий процент масштаба в правом нижнем углу
         Text(
             text = "Масштаб: ${(presenter.zoom * 100).toInt()}%",
             modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp)
@@ -269,7 +265,7 @@ fun DraggableCanvasView(
             color = Color.Black
         )
 
-        // --- Ползунок для настройки скорости изменения масштаба (zoom) ---
+        // Ползунок для настройки скорости изменения масштаба (zoom)
         Column(modifier = Modifier.align(Alignment.BottomStart)) {
             Text(text = "Скорость изменения масштаба: ${sliderPosition + 10f} %", fontSize = 15.sp)
             Slider(
