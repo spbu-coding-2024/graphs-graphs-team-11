@@ -12,18 +12,38 @@ import org.spb.project.presenter.database.neo4jDb
 import kotlin.random.Random
 import kotlin.math.min
 
+/**
+ * Презентер, отвечающий за логику работы с графом и синхронизацию модели и UI-слоя.
+ *
+ * Основные обязанности:
+ * 1. Хранит экземпляр графа и управляет его состоянием (загрузка, сохранение, модификации).
+ * 2. Обеспечивает реализацию алгоритмов визуализации и анализа графа (ForceAtlas2, SCC, MST и др.).
+ * 3. Управляет списком узлов (`CircleNode`) для отображения на Canvas и передаёт новые координаты в модель.
+ * 4. Обрабатывает события пользовательского ввода: добавление/удаление/окрашивание узлов, перетаскивание, масштабирование и т.д.
+ */
 class CanvasPresenter {
+    // Текущий граф (изначально — невзвешенный неориентированный)
     private var graph by mutableStateOf(Graph(GraphType.NON_ORIENTED))
+
+    // Помощник для работы с SQLite-базой
     private val db = GraphDbHelper
 
+    // Клиент для работы с Neo4j (Bolt-протокол)
     private val neo4jDb = neo4jDb("bolt://localhost:7687", "neo4j", "lolkekcheb")
+
+    // Алгоритм ForceAtlas2 для раскладки вершин
     private var forceAtlas = ForceAtlas2Layout()
+
+    // Поисковик сильно связных компонентов
     private val sccFinder = StronglyConnectedComponents()
 
     // Добавляем поле для MST-алгоритма
     private val mstBuilder = MinimumSpanningTree()
-    val graphType: GraphType
-        get() = graph.getType()
+
+    /**
+     * Текущий тип графа. Используется для управления доступностью некоторых алгоритмов.
+     */
+    val graphType: GraphType get() = graph.getType()
 
     // UI-список вершин
     private val nodesList = mutableStateListOf<CircleNode>()
@@ -40,8 +60,18 @@ class CanvasPresenter {
         private set
     var memorizedVertex = 0
 
+    // Индекс узла, который сейчас перетаскивается (или null, если перетаскивается канвас)
     private var activeDragIndex by mutableStateOf<Int?>(null)
+
+    /**
+     * Текущий масштаб (zoom). Коэффициент масштабирования канваса.
+     * Принимает значения от 0.1 до 5. Начальное значение — 1f.
+     */
     var zoom by mutableStateOf(1f); private set
+
+    /**
+     * Текущая панорамная смещение (pan). Используется при перетаскивании канваса.
+     */
     var pan by mutableStateOf(Offset.Zero); private set
     var result by mutableStateOf("")
 
@@ -49,15 +79,26 @@ class CanvasPresenter {
         loadGraph()
     }
 
+    /**
+     * Устанавливает выделенный узел по переданному индексу.
+     *
+     * @param index индекс узла в списке vertices или null, чтобы снять выделение.
+     */
     fun selectNode(index: Int?) {
         selectedNodeIndex = index
     }
 
     /**
-     * Добавить вершину.
-     * Если узел выбран, добавляем её и соединяем с ним.
+     * Добавляет новую вершину в модель и в UI.
+     *
+     * Если есть выделенный узел, новая вершина появится в смещении (+50,+50)
+     * относительно него и автоматически соединится с ним ребром весом 1 (цвет по умолчанию).
+     * Если ничего не выделено, вершина появляется в центре (Offset(500f, 800f)).
+     *
+     * @param color цвет новой вершины (ARGB Int).
      */
     fun addCircle(color: Int) {
+        // Вычисляем позицию: либо рядом с выделенным узлом, либо по умолчанию
         val pos = if (selectedNodeIndex != null) {
             val sel = nodesList[selectedNodeIndex!!]
             sel.offset + Offset(50f, 50f)
@@ -65,43 +106,49 @@ class CanvasPresenter {
             Offset(500f, 800f)
         }
 
-        // 1) модель
+        // 1) Модель: добавляем вершину
         graph.addVertex(pos.x.toDouble(), pos.y.toDouble(), color)
         val newIdx = graph.getVertexes().lastIndex
 
-        // если был выбран узел — добавить ребро
+        // Если был выбран узел — создаём ребро между ним и новой вершиной
         selectedNodeIndex?.let { selIdx ->
-            // вес = 1, цвет ребра можно по умолчанию
             val edgeColor = 0xFF888888.toInt()
             graph.addEdge(selIdx, newIdx, 1, edgeColor)
         }
 
-        // 2) UI
+        // 2) UI: добавляем CircleNode
         nodesList.add(CircleNode(pos, color = color))
     }
 
     /**
-     * Удалить выбранный узел и все инцидентные рёбра.
+     * Удаляет выделенную вершину и все инцидентные рёбра в модели и в UI.
+     *
+     * Последовательность действий:
+     * 1. Удаляем вершину из списка vertexes (модель).
+     * 2. Удаляем все исходящие из неё рёбра (list.removeAt).
+     * 3. В оставшихся списках рёбер удаляем ребра, которые вели в неё,
+     *    и «перенумеровываем» вершины с большим индексом (vertex > idx) — уменьшаем на 1.
+     * 4. Удаляем соответствующий CircleNode из nodesList и снимаем выделение.
+     * 5. Сбрасываем memorizedVertex в 0.
      */
     fun deleteSelectedNode() {
         selectedNodeIndex?.let { idx ->
-            // --- 1) модель: удаляем саму вершину ---
+            // --- 1) Модель: удаляем саму вершину ---
             if (idx in graph.getVertexes().indices) {
                 graph.getVertexes().removeAt(idx)
             }
-            // --- 2) модель: удаляем список исходящих рёбер этой вершины ---
+            // --- 2) Модель: удаляем список исходящих рёбер этой вершины ---
             if (idx in graph.getEdges().indices) {
                 graph.getEdges().removeAt(idx)
             }
-            // --- 3) модель: пробегаем по всем оставшимся спискам рёбер ---
+            // --- 3) Модель: корректируем оставшиеся списки рёбер ---
             graph.getEdges().forEach { list ->
-                // удаляем все рёбра, ведущие в idx
+                // удаляем все ребра, ведущие в idx
                 list.removeAll { it.vertex == idx }
-                // теперь все вершины с большим индексом «сдвигаем» на 1
+                // уменьшаем vertex у ребёр, индекс которых больше idx
                 for (i in list.indices) {
                     val e = list[i]
                     if (e.vertex > idx) {
-                        // создаём новое ребро с уменьшенным vertex
                         list[i] = Edge(
                             vertex = e.vertex - 1,
                             weight = e.weight,
@@ -111,7 +158,7 @@ class CanvasPresenter {
                 }
             }
 
-            // --- 4) UI: удаляем узел из списка и сбрасываем выделение ---
+            // --- 4) UI: удаляем узел из nodesList и сбрасываем выделение ---
             if (idx in nodesList.indices) {
                 nodesList.removeAt(idx)
             }
@@ -121,16 +168,31 @@ class CanvasPresenter {
     }
 
 
+    /**
+     * Изменяет цвет выделенного узла.
+     *
+     * @param color новый цвет (ARGB Int).
+     */
     fun paintSelectedNode(color: Int) {
         selectedNodeIndex?.let { idx ->
             nodesList[idx] = nodesList[idx].copy(color = color)
         }
     }
 
+    /**
+     * Меняет цвет всех узлов на переданный.
+     *
+     * @param color цвет (ARGB Int) для всех узлов.
+     */
     fun paintAll(color: Int) {
         nodesList.replaceAll { it.copy(color = color) }
     }
 
+    /**
+     * Сохраняет текущие координаты и цвета вершин из UI обратно в модель и затем в базу SQLite.
+     *
+     * @param graphId идентификатор графа в базе (по умолчанию = 1).
+     */
     fun saveGraph(graphId: Int = 1) {
         nodesList.forEachIndexed { i, node ->
             val v = graph.getVertexes()[i]
@@ -141,6 +203,11 @@ class CanvasPresenter {
         db.saveGraph(graph, graphId)
     }
 
+    /**
+     * Загружает граф из SQLite (id = graphId), очищает UI-список и заполняет его новыми CircleNode.
+     *
+     * @param graphId идентификатор графа (по умолчанию = 1).
+     */
     fun loadGraph(graphId: Int = 1) {
         graph = db.loadGraph(graphId)
         nodesList.clear()
@@ -150,6 +217,7 @@ class CanvasPresenter {
         selectedNodeIndex = null
         memorizedVertex = 0
     }
+
 
     fun loadNeo4jGraph(graphId: Int = 1) {
         graph = neo4jDb.readGraph(graphId)
@@ -198,7 +266,12 @@ class CanvasPresenter {
     }
 
     /**
-     * Начало перетаскивания узла/канвы.
+     * Начало перетаскивания: проверяет, если клик попал на узел, то сохраняет его индекс в activeDragIndex,
+     * иначе возвращает false, и перетаскивание будет трактоваться как панорамирование канваса.
+     *
+     * @param pos экранная позиция касания.
+     * @param padding отступ от границ канваса.
+     * @return true, если началось перетаскивание узла, false — если канвас.
      */
     fun startDrag(pos: Offset, padding: Float): Boolean {
         val world = (pos / zoom) + pan + Offset(padding, padding)
@@ -208,31 +281,39 @@ class CanvasPresenter {
     }
 
     /**
-     * Перетаскивание — либо конкретный узел, либо канвас.
+     * Обработка перетаскивания: если перетаскивается узел, меняем его координаты и синхронизируем с моделью,
+     * иначе двигаем канвас (pan).
+     *
+     * @param delta смещение курсора от предыдущей позиции (в локальных координатах экрана).
      */
     fun onDrag(delta: Offset) {
         activeDragIndex?.let { idx ->
-            // 1) Сначала вычисляем новый Offset в «мире»
+            // 1) Считаем новую позицию узла в координатах «мира»
             val oldOffset = nodesList[idx].offset
             val newOffset = oldOffset + (delta / zoom)
 
-            // 2) Обновляем UI‐версию (CircleNode), чтобы на экране нод «уехал»
+            // 2) Обновляем UI-узел
             nodesList[idx] = nodesList[idx].copy(offset = newOffset)
 
-            // 3) Синхронизируем модельный Vertex: запишем в graph.getVertexes()[idx] новые x,y
-            //    Заметим: в модели Vertex хранит x,y как Double, но новый newOffset – это Float
+            // 3) Синхронизируем модель (Vertex хранит Double)
             val vertex = graph.getVertexes()[idx]
             vertex.x = newOffset.x.toDouble()
             vertex.y = newOffset.y.toDouble()
 
         } ?: run {
-            // двигаем саму панорамную позицию
+            // Перетаскиваем канвас
             pan -= delta / zoom
         }
     }
 
     /**
-     * Альтернативный вариант: при ограничениях границ, если нужен.
+     * Альтернатива onDrag, когда нужно ограничить движение узла рамками канваса.
+     *
+     * @param idx индекс узла, который двигаем.
+     * @param delta смещение курсора.
+     * @param padding отступ от краёв.
+     * @param canvasSize размер канваса.
+     * @param zoom текущий коэффициент масштабирования.
      */
     fun onDragForNode(idx: Int, delta: Offset, padding: Float, canvasSize: IntSize, zoom: Float) {
         val old = nodesList[idx].offset
@@ -251,10 +332,19 @@ class CanvasPresenter {
         onDrag(deltaClamped * zoom)
     }
 
+    /**
+     * Завершает перетаскивание (сбрасывает activeDragIndex).
+     */
     fun endDrag() {
         activeDragIndex = null
     }
 
+    /**
+     * Меняет масштаб канваса. Пересчитывает pan так, чтобы точка focus оставалась «на месте».
+     *
+     * @param factor множитель масштаба (например, 1.1f — увеличить, 0.9f — уменьшить).
+     * @param focus экранные координаты точки, вокруг которой масштабируем.
+     */
     fun zoomBy(factor: Float, focus: Offset) {
         val old = zoom
         val newZoom = (old * factor).coerceIn(0.1f, 5f)
@@ -263,12 +353,14 @@ class CanvasPresenter {
     }
 
     /**
-     * Вызывать после одного шага ForceAtlas2: обновляет модель и UI.
+     * Выполняет один шаг алгоритма ForceAtlas2: обновляет модель и синхронизирует UI-координаты.
+     *
+     * После вызова все узлы в nodesList получают новые координаты из vertexes.
      */
     fun applyForceAtlas2Layout() {
-        // 1) применяем раскладку к модели
+        // 1) Применяем раскладку к модели
         forceAtlas.applyLayout(graph)
-        // 2) обновляем UI-координаты (ваш существующий код)
+        // 2) Синхронизируем UI: обновляем координаты узлов
         val vertices = graph.getVertexes()
         for (i in vertices.indices) {
             val v = vertices[i]
@@ -277,26 +369,19 @@ class CanvasPresenter {
     }
 
     /**
-     * Выделить сильносвязные компоненты: покрасить узлы в «случайные»,
-     * но постоянно одни и те же цвета по компонентам.
+     * Находит сильно связные компоненты (только для ориентированного графа)
+     * и красит каждую компоненту в «случайный», но детерминированный цвет
+     * (фиксированный seed для Random(0)).
      */
     fun highlightStronglyConnectedComponents() {
-        // 1) SCC имеет смысл только для ориентированного графа
         if (graph.getType() != GraphType.ORIENTED) return
-
-        // 2) Находим все СК-компоненты
         val components = sccFinder.findComponents(graph)
-
-        // 3) Фиксируем сид, чтобы цветовые «рандомы» были всегда одинаковыми
         val rnd = Random(0)
-
-        // 4) Для каждой компоненты генерируем свой цвет с альфой=FF
         val colors = components.map {
-            val rgb = rnd.nextInt(0x1_000_000)         // диапазон 0x000000..0xFFFFFF
-            (0xFF shl 24) or rgb                      // ARGB: непрозрачный цвет
+            val rgb = rnd.nextInt(0x1_000_000)
+            (0xFF shl 24) or rgb
         }
 
-        // 5) Применяем цвет к вершинам, безопасно проверяя диапазон индексов
         val nodeCount = nodesList.size
         components.forEachIndexed { idx, comp ->
             val color = colors[idx]
@@ -309,44 +394,29 @@ class CanvasPresenter {
     }
 
     /**
-     * Алгоритм Крускала для построения минимального остовного дерева (MST)
+     * Алгоритм Крускала: строит минимальное остовное дерево (MST) из алгоритма mstBuilder,
+     * затем заменяет списки смежности на новые (только с ребрами MST), делает
+     * ~100 итераций ForceAtlas2 для «распрямления», и обновляет UI-координаты.
      */
     fun highlightMinimumSpanningTree() {
-        // 1) Строим MST (список рёбер u-v)
         val mst: List<MinimumSpanningTree.MSTEdge> = mstBuilder.buildMST(graph)
-
-        // 2) Реконструируем списки смежности, оставляя только МСТ-рёбра
         val vertexCount = graph.getVertexes().size
-        // создаём новые пустые списки для каждой вершины:
         val newAdjLists: MutableList<MutableList<Edge>> = MutableList(vertexCount) { mutableListOf() }
-
-        // цвет для МСТ-рёбер (например, красный)
         val mstEdgeColor = 0xFFFF0000.toInt()
 
-        // для каждого ребра из mst добавляем два «направления»
         for (e in mst) {
             newAdjLists[e.u].add(Edge(vertex = e.v, weight = e.weight, color = mstEdgeColor))
             newAdjLists[e.v].add(Edge(vertex = e.u, weight = e.weight, color = mstEdgeColor))
         }
 
-        // 3) Заменяем старые списки смежности на новые
-        //    Предполагаем, что graph.getEdges() возвращает MutableList<MutableList<Edge>>
         graph.getEdges().clear()
-        newAdjLists.forEach { adj ->
-            graph.getEdges().add(adj)
-        }
+        newAdjLists.forEach { adj -> graph.getEdges().add(adj) }
 
-        // 4) Перезапускаем Layout ForceAtlas2 несколько итераций, чтобы MST «расправился» на плоскости
-        //    (Если просто один шаг – может не успеть распрямиться в дерево)
-        repeat(100) {
-            forceAtlas.applyLayout(graph)
-        }
+        repeat(100) { forceAtlas.applyLayout(graph) }
 
-        // 5) Обновляем UI-координаты каждой вершины из модели в nodesList
         val vertices = graph.getVertexes()
         for (i in vertices.indices) {
             val v = vertices[i]
-            // v.x и v.y содержат координаты после работы ForceAtlas2
             nodesList[i] = nodesList[i].copy(offset = Offset(v.x.toFloat(), v.y.toFloat()))
         }
     }
@@ -527,19 +597,34 @@ class CanvasPresenter {
     }
 
     /**
-     * Изменение радиуса для вершины
+     * Изменяет радиус выбранной вершины на заданное значение.
+     *
+     * Если индекс выбранной вершины (`selectedNodeIndex`) не равен null, то:
+     * - Получаем текущий радиус вершины из списка `nodesList`.
+     * - Прибавляем к нему переданное смещение `delta`.
+     * - Ограничиваем итоговый радиус значениями от 5f до 100f.
+     * - Обновляем объект вершины в `nodesList`, сохраняя остальные параметры без изменений.
+     *
+     * @param delta Разница в радиусе, которую нужно применить к текущему значению.
      */
     fun changeSelectedNodeRadius(delta: Float) {
         selectedNodeIndex?.let { idx ->
             val oldRadius = nodesList[idx].radius
-            // Минимальный радиус 5f, максимальный, например, 100f
+            // Минимальный радиус 5f, максимальный — 100f
             val newRadius = (oldRadius + delta).coerceIn(5f, 100f)
             nodesList[idx] = nodesList[idx].copy(radius = newRadius)
         }
     }
 
     /**
-     * Изменить размер всех вершин
+     * Масштабирует радиусы всех вершин в графе с помощью заданного коэффициента.
+     *
+     * Для каждой вершины в `nodesList`:
+     * - Вычисляется новый радиус как произведение текущего значения на `factor`.
+     * - Ограничиваем итоговый радиус диапазоном от 5f до 100f.
+     * - Заменяем вершину на копию с обновлённым радиусом.
+     *
+     * @param factor Коэффициент масштабирования. Значение >1 увеличит радиусы, <1 — уменьшит.
      */
     fun scaleAllNodeRadii(factor: Float) {
         nodesList.forEachIndexed { idx, node ->
@@ -549,7 +634,21 @@ class CanvasPresenter {
     }
 
     /**
-     * Вызывать после изменения любого из параметров, чтобы пересоздать экземпляр.
+     * Обновляет экземпляр ForceAtlas2Layout с новыми параметрами.
+     *
+     * Вызывается после изменения любого из параметров алгоритма, чтобы пересоздать
+     * объекты с учётом новых констант:
+     * - repulsion — сила отталкивания между узлами.
+     * - attraction — сила притяжения.
+     * - damping — коэффициент демпфирования.
+     * - gravity — сила гравитации.
+     * - maxDisplacement — ограничение на перемещение узла за итерацию.
+     *
+     * @param repulsion Новое значение коэффициента силы отталкивания.
+     * @param attraction Новое значение коэффициента силы притяжения.
+     * @param damping Новое значение коэффициента демпфирования.
+     * @param gravity Новое значение силы гравитации.
+     * @param maxDisplacement Максимальное смещение вершины за итерацию.
      */
     fun updateForceAtlasParams(
         repulsion: Double,
@@ -558,7 +657,7 @@ class CanvasPresenter {
         gravity: Double,
         maxDisplacement: Double
     ) {
-        // Пересоздаём экземпляр ForceAtlas2Layout с новыми константами
+        // Пересоздаём экземпляр ForceAtlas2Layout с обновлёнными константами
         forceAtlas = ForceAtlas2Layout(
             repulsionConstant = repulsion,
             attractionConstant = attraction,
@@ -568,6 +667,18 @@ class CanvasPresenter {
         )
     }
 
+    /**
+     * Возвращает текущие параметры алгоритма ForceAtlas в виде объекта ForceAtlasParams.
+     *
+     * Извлекает из существующего экземпляра forceAtlas значения:
+     * - коэффициента отталкивания;
+     * - коэффициента притяжения;
+     * - демпфирования;
+     * - гравитации;
+     * - максимального смещения.
+     *
+     * @return Объект ForceAtlasParams с актуальными значениями всех пяти параметров.
+     */
     fun getForceAtlasParams(): ForceAtlasParams {
         return ForceAtlasParams(
             repulsion = forceAtlas.getRepulsionConstant(),
@@ -577,5 +688,4 @@ class CanvasPresenter {
             maxDisplacement = forceAtlas.getMaxDisplacement()
         )
     }
-
 }
