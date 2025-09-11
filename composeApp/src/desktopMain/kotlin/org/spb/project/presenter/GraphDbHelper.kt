@@ -67,6 +67,7 @@ object GraphDbHelper {
                     populateSampleGraph8()
                     populateSampleGraph9()
                     populateSampleGraph10()
+                    populateSampleGraph11()
                 }
             }
         }
@@ -522,6 +523,53 @@ object GraphDbHelper {
 
         // сохраняем граф с идентификатором 11
         saveGraph(g, 10)
+    }
+    private fun populateSampleGraph11(){
+        val g = Graph(GraphType.NON_ORIENTED)
+        val x = 800.0
+        val y = 400.0
+        val rnd = Random(42)
+        repeat(9){
+            val X = x*rnd.nextDouble()
+            val Y = y*rnd.nextDouble()
+            g.addVertex(X,Y,DEFAULT_VERTEX_COLOR)
+        }
+        g.addEdge(0, 1, 0, DEFAULT_EDGE_COLOR)
+        g.addEdge(1, 0, 0, DEFAULT_EDGE_COLOR)
+
+        g.addEdge(1, 2, 0, DEFAULT_EDGE_COLOR)
+        g.addEdge(2, 1, 0, DEFAULT_EDGE_COLOR)
+
+        g.addEdge(3, 4, 0, DEFAULT_EDGE_COLOR)
+        g.addEdge(4, 3, 0, DEFAULT_EDGE_COLOR)
+
+        g.addEdge(4, 5, 0, DEFAULT_EDGE_COLOR)
+        g.addEdge(5, 4, 0, DEFAULT_EDGE_COLOR)
+
+        g.addEdge(6, 7, 0, DEFAULT_EDGE_COLOR)
+        g.addEdge(7, 6, 0, DEFAULT_EDGE_COLOR)
+
+        g.addEdge(7, 8, 0, DEFAULT_EDGE_COLOR)
+        g.addEdge(8, 7, 0, DEFAULT_EDGE_COLOR)
+
+        g.addEdge(0, 3, 0, DEFAULT_EDGE_COLOR)
+        g.addEdge(3, 0, 0, DEFAULT_EDGE_COLOR)
+
+        g.addEdge(1, 4, 0, DEFAULT_EDGE_COLOR)
+        g.addEdge(4, 1, 0, DEFAULT_EDGE_COLOR)
+
+        g.addEdge(2, 5, 0, DEFAULT_EDGE_COLOR)
+        g.addEdge(5, 2, 0, DEFAULT_EDGE_COLOR)
+
+        g.addEdge(3, 6, 0, DEFAULT_EDGE_COLOR)
+        g.addEdge(6, 3, 0, DEFAULT_EDGE_COLOR)
+
+        g.addEdge(4, 7, 0, DEFAULT_EDGE_COLOR)
+        g.addEdge(7, 4, 0, DEFAULT_EDGE_COLOR)
+
+        g.addEdge(5, 8, 0, DEFAULT_EDGE_COLOR)
+        g.addEdge(8, 5, 0, DEFAULT_EDGE_COLOR)
+        saveGraph(g,11)
     }
 
 

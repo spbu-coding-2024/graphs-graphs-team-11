@@ -458,6 +458,7 @@ private fun AlgoPanel(presenter: CanvasPresenter) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)){
                 Button(onClick = {presenter.bridgeSearchAlg()}){Text("Поиск мостов")}
                 Button(onClick = {presenter.DijkstraAlgorithm()} , enabled = presenter.selectedNodeIndex!=null) {Text("Алгоритм Дейкстры")}
+                Button(onClick = {presenter.collectiveInfluenceAlg()}){Text("Collective influence")}
                 Spacer(Modifier.width(16.dp))
 
             }
