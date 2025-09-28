@@ -503,6 +503,19 @@ class CanvasPresenter {
             list.forEach { it.color = defaultEdgeColor }
         }
     }
+    fun copyGraph(graph: Graph):Graph{
+        val newGraph = Graph(GraphType.NON_ORIENTED)
+        for (i in graph.getEdges().indices){
+            for (k in graph.getEdges()[i]){
+                newGraph.addEdge(i,k.vertex,0,0)
+            }
+        }
+        for (i in graph.getVertexes()){
+            newGraph.addVertex(i.x,i.y,i.color)
+        }
+        return newGraph
+
+    }
     fun collectiveInfluenceAlg(){
         val copy = copyGraph(graph)
         val nodes = CollectiveInfluence(copy)
