@@ -2,8 +2,8 @@ package org.spb.project
 
 
 import org.junit.jupiter.api.Test
-import org.spb.project.common.Graph
-import org.spb.project.common.GraphType
+import org.spb.project.model.common.Graph
+import org.spb.project.model.common.GraphType
 import org.spb.project.presenter.algorithm.DijkstraAlgorithm
 import org.junit.jupiter.api.Assertions.*
 

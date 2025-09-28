@@ -2,8 +2,8 @@ package org.spb.project
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
-import org.spb.project.common.Graph
-import org.spb.project.common.GraphType
+import org.spb.project.model.common.Graph
+import org.spb.project.model.common.GraphType
 import org.spb.project.presenter.algorithm.BridgeSearch
 import org.spb.project.view.GraphScreen
 import javax.imageio.plugins.tiff.BaselineTIFFTagSet
