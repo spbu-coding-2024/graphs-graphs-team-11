@@ -44,6 +44,7 @@ class CanvasPresenter {
     var zoom by mutableStateOf(1f); private set
     var pan by mutableStateOf(Offset.Zero); private set
     var result by mutableStateOf("")
+    var resultDijkstra by mutableStateOf("")
 
     init {
         loadGraph()
@@ -416,8 +417,6 @@ class CanvasPresenter {
         val copy = copyGraph(graph)
         val nodes = CollectiveInfluence(copy)
         val result = nodes.getResultCollectiveInfluence(distance = 2)
-        println(result)
-
         for (i in result){
             graph.getVertexes()[i].color = 0xFFFF0000.toInt()
         }
@@ -471,9 +470,10 @@ class CanvasPresenter {
             edgeForward?.color = edgeColor
             val edgeBackward = edges[v].firstOrNull { it.vertex == u }
             edgeBackward?.color = edgeColor
-            result = "(${shortPath.first})"
+
 
         }
+        resultDijkstra = "${shortPath.first}"
         selectedNodeIndex = null
     }
     fun FordBelman(){

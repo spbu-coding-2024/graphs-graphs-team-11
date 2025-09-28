@@ -76,7 +76,7 @@ class CollectiveInfluence(graph:Graph) {
         if (N == 0 || averageDegree == 0.0) throw IllegalArgumentException("Invalid graph")
         val alpha:Double  = (sumOfValuesCI.toDouble()/(N*averageDegree)).pow(1.0/(distance+1))
 
-        println(alpha)
+
         if (alpha < 1.0){
             return false
         }
