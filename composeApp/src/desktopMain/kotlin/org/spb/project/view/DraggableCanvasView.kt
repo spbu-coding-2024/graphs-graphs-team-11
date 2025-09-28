@@ -459,9 +459,9 @@ private fun AlgoPanel(presenter: CanvasPresenter) {
                 Button(onClick = {presenter.bridgeSearchAlg()}){Text("Поиск мостов")}
                 Button(onClick = {presenter.collectiveInfluenceAlg()}){Text("Collective influence")}
                 Button(onClick = {presenter.DijkstraAlgorithm()} , enabled = presenter.selectedNodeIndex!=null) {Text("Алгоритм Дейкстры")}
-                if (presenter.resultDijkstra!="") {
+                if (presenter.result!="") {
                     Text(
-                        text = "Кратчайший путь: ${presenter.resultDijkstra}",
+                        text = "Кратчайший путь: ${presenter.result}",
                         modifier = Modifier.padding(vertical = 16.dp)
                     )
                 }
