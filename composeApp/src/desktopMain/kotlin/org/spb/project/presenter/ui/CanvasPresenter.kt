@@ -501,6 +501,34 @@ class CanvasPresenter {
             list.forEach { it.color = defaultEdgeColor }
         }
     }
+    fun copyGraph(graph: Graph):Graph{
+        val newGraph = Graph(GraphType.NON_ORIENTED)
+        for (i in graph.getEdges().indices){
+            for (k in graph.getEdges()[i]){
+                newGraph.addEdge(i,k.vertex,0,0)
+            }
+        }
+        for (i in graph.getVertexes()){
+            newGraph.addVertex(i.x,i.y,i.color)
+        }
+        return newGraph
+
+    }
+    fun collectiveInfluenceAlg(){
+        val copy = copyGraph(graph)
+        val nodes = CollectiveInfluence(copy)
+        val result = nodes.getResultCollectiveInfluence(distance = 2)
+        for (i in result){
+            graph.getVertexes()[i].color = 0xFFFF0000.toInt()
+        }
+        val vertices = graph.getVertexes()
+        for (i in vertices.indices) {
+            val v = vertices[i]
+            nodesList[i] = nodesList[i].copy(color = v.color)
+        }
+
+
+    }
 
     fun bridgeSearchAlg() {
         val defaultEdgeColor = 0xFF888888.toInt()
@@ -544,9 +572,10 @@ class CanvasPresenter {
             edgeForward?.color = edgeColor
             val edgeBackward = edges[v].firstOrNull { it.vertex == u }
             edgeBackward?.color = edgeColor
-            result = "(${shortPath.first})"
+
 
         }
+        result = "${shortPath.first}"
         selectedNodeIndex = null
     }
 

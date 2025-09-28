@@ -51,21 +51,3 @@ open class BridgeSearch(graph: Graph){
 
 
 }
-fun main(){
-    var g1 = Graph(GraphType.NON_ORIENTED)
-    val BridgeSearce1  = BridgeSearch(g1)
-
-    g1.addEdge(1, 0,1,1);
-    g1.addEdge(0,1,1,1)
-    g1.addEdge(0, 2,1,1);
-    g1.addEdge(2,0,1,1)
-    g1.addEdge(2, 1,1,1);
-    g1.addEdge(1,2,1,1)
-    g1.addEdge(0, 3,1,1);
-    g1.addEdge(3,0,1,1)
-    g1.addEdge(3, 4,1,1)
-    g1.addEdge(4,3,1,1)
-   val b =  BridgeSearce1.bridge()
-    println(b)
-
-}

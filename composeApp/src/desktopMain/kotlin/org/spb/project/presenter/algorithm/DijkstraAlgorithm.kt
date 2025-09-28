@@ -1,4 +1,6 @@
 package org.spb.project.presenter.algorithm
+import androidx.compose.ui.graphics.vector.addPathNodes
+import androidx.compose.ui.text.resolveDefaults
 import java.util.PriorityQueue
 import org.spb.project.model.common.Graph
 
@@ -43,7 +45,7 @@ class DijkstraAlgorithm(src:Int, target:Int, graph: Graph){
         }
         return adj
     }
-    fun dijkstra(graph: Graph, edges: MutableList<MutableList<Int>>): Pair<Int, List<Int>> {
+    fun dijkstra(graph:Graph, edges: MutableList<MutableList<Int>>): Pair<Int, List<Int>> {
         val v = graph.getEdges().size
         val adj = vertexes(edges, v)
         val pq = PriorityQueue<MutableList<Int>>(compareBy { it[0] })
@@ -77,6 +79,8 @@ class DijkstraAlgorithm(src:Int, target:Int, graph: Graph){
                 }
             }
         }
+        if (dist.size <= targetNode) return Pair(0,listOf())
+        if (dist[targetNode] == Int.MAX_VALUE) return Pair(0,listOf())
         val path = path(parent, targetNode)
         return dist[targetNode] to path
     }

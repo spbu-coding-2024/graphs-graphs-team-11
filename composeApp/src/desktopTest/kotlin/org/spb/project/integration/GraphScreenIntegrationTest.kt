@@ -95,4 +95,28 @@ class CanvasPresenterIntegrationTest {
             "После удаления выбранного узла остальные должны сместиться и сохраниться в том же порядке"
         )
     }
+    @Test
+    fun `adding a vertex also adds an edge`(){
+        presenter.addCircle(0xAAAA0000.toInt())
+        presenter.addCircle(0xBBBB0000.toInt())
+        presenter.selectNode(0)
+        presenter.addCircle(1)
+        assertEquals(presenter.edges[0].size,1)
+        assertEquals(presenter.edges[0][0].vertex, 2)
+
+    }
+    @Test
+    fun `deleting a vertex results in deleting all edges`(){
+        presenter.addCircle(0xAAAA0000.toInt())
+        presenter.addCircle(0xBBBB0000.toInt())
+        presenter.selectNode(1)
+        presenter.addCircle(0xBBBB0000.toInt())
+        presenter.addCircle(0xCCCC0000.toInt())
+        presenter.addCircle(0xDDDD0000.toInt())
+        presenter.addCircle(0xAAAB0000.toInt())
+        presenter.deleteSelectedNode()
+        for (i in presenter.edges){
+            assertEquals(i.size,0, "После удаления вершины список ребер будет пуст" )
+        }
+    }
 }
