@@ -1,4 +1,4 @@
-package org.spb.project.model
+package org.spb.project.model.ui
 
 import androidx.compose.ui.geometry.Offset
 

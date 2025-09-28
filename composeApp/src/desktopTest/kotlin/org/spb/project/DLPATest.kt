@@ -2,18 +2,18 @@ package org.spb.project
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import org.spb.project.common.Graph
-import org.spb.project.common.GraphType
-import org.spb.project.presenter.DLPA
+import org.spb.project.model.common.Graph
+import org.spb.project.model.common.GraphType
+import org.spb.project.presenter.algorithm.DLPA
 
 class DLPATest {
 
     @Test
     fun `TwoVertexGraphDLPA`() {
-        val graph = Graph(GraphType.WEIGHTED_NON_ORIENTED)
+        val graph = Graph(GraphType.WEIGHTED_ORIENTED)
         graph.addVertex(1.0, 1.0, 1)
         graph.addVertex(1.0, 1.0, 1)
-        graph.addEdge(0,1,1,1)
+        graph.addEdge(0, 1, 1, 1)
         val dlpa = DLPA(graph)
         dlpa.labelPropagation()
         assertTrue(dlpa.labels.isNotEmpty())
@@ -24,12 +24,12 @@ class DLPATest {
 
     @Test
     fun `ThreeVertex1GraphDLPA`() {
-        val graph = Graph(GraphType.WEIGHTED_NON_ORIENTED)
+        val graph = Graph(GraphType.WEIGHTED_ORIENTED)
         graph.addVertex(1.0, 1.0, 1)
         graph.addVertex(1.0, 1.0, 1)
         graph.addVertex(1.0, 1.0, 1)
-        graph.addEdge(0,2,1,1)
-        graph.addEdge(0,1,1,1)
+        graph.addEdge(0, 2, 1, 1)
+        graph.addEdge(0, 1, 1, 1)
         val dlpa = DLPA(graph)
         dlpa.labelPropagation()
         assertTrue(dlpa.labels.isNotEmpty())
@@ -41,12 +41,12 @@ class DLPATest {
 
     @Test
     fun `ThreeVertex2GraphDLPA`() {
-        val graph = Graph(GraphType.WEIGHTED_NON_ORIENTED)
+        val graph = Graph(GraphType.WEIGHTED_ORIENTED)
         graph.addVertex(1.0, 1.0, 1)
         graph.addVertex(1.0, 1.0, 1)
         graph.addVertex(1.0, 1.0, 1)
-        graph.addEdge(0,1,1,1)
-        graph.addEdge(0,2,1,1)
+        graph.addEdge(0, 1, 1, 1)
+        graph.addEdge(0, 2, 1, 1)
         val dlpa = DLPA(graph)
         dlpa.labelPropagation()
         assertTrue(dlpa.labels.isNotEmpty())
@@ -58,14 +58,14 @@ class DLPATest {
 
     @Test
     fun `FourVertexLineGraphDLPA`() {
-        val graph = Graph(GraphType.WEIGHTED_NON_ORIENTED)
+        val graph = Graph(GraphType.WEIGHTED_ORIENTED)
         graph.addVertex(1.0, 1.0, 1)
         graph.addVertex(1.0, 1.0, 1)
         graph.addVertex(1.0, 1.0, 1)
         graph.addVertex(1.0, 1.0, 1)
-        graph.addEdge(0,1,1,1)
-        graph.addEdge(1,2,1,1)
-        graph.addEdge(2,3,1,1)
+        graph.addEdge(0, 1, 1, 1)
+        graph.addEdge(1, 2, 1, 1)
+        graph.addEdge(2, 3, 1, 1)
         val dlpa = DLPA(graph)
         dlpa.labelPropagation()
         assertTrue(dlpa.labels.isNotEmpty())
@@ -78,16 +78,16 @@ class DLPATest {
 
     @Test
     fun `K3GraphDLPA`() {
-        val graph = Graph(GraphType.WEIGHTED_NON_ORIENTED)
+        val graph = Graph(GraphType.WEIGHTED_ORIENTED)
         graph.addVertex(1.0, 1.0, 1)
         graph.addVertex(1.0, 1.0, 1)
         graph.addVertex(1.0, 1.0, 1)
-        graph.addEdge(0,1,1,1)
-        graph.addEdge(0,2,1,1)
-        graph.addEdge(1,0,1,1)
-        graph.addEdge(1,2,1,1)
-        graph.addEdge(2,0,1,1)
-        graph.addEdge(2,1,1,1)
+        graph.addEdge(0, 1, 1, 1)
+        graph.addEdge(0, 2, 1, 1)
+        graph.addEdge(1, 0, 1, 1)
+        graph.addEdge(1, 2, 1, 1)
+        graph.addEdge(2, 0, 1, 1)
+        graph.addEdge(2, 1, 1, 1)
         val dlpa = DLPA(graph)
         dlpa.labelPropagation()
         assertTrue(dlpa.labels.isNotEmpty())
@@ -99,18 +99,18 @@ class DLPATest {
 
     @Test
     fun `TriangleAndVertexGraphDLPA`() {
-        val graph = Graph(GraphType.WEIGHTED_NON_ORIENTED)
+        val graph = Graph(GraphType.WEIGHTED_ORIENTED)
         graph.addVertex(1.0, 1.0, 1)
         graph.addVertex(1.0, 1.0, 1)
         graph.addVertex(1.0, 1.0, 1)
         graph.addVertex(1.0, 1.0, 1)
-        graph.addEdge(0,1,1,1)
-        graph.addEdge(0,2,1,1)
-        graph.addEdge(1,0,1,1)
-        graph.addEdge(1,2,1,1)
-        graph.addEdge(2,0,1,1)
-        graph.addEdge(2,1,1,1)
-        graph.addEdge(1,3,1,1)
+        graph.addEdge(0, 1, 1, 1)
+        graph.addEdge(0, 2, 1, 1)
+        graph.addEdge(1, 0, 1, 1)
+        graph.addEdge(1, 2, 1, 1)
+        graph.addEdge(2, 0, 1, 1)
+        graph.addEdge(2, 1, 1, 1)
+        graph.addEdge(1, 3, 1, 1)
         val dlpa = DLPA(graph)
         dlpa.labelPropagation()
         assertTrue(dlpa.labels.isNotEmpty())

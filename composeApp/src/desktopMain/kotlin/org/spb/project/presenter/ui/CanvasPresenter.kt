@@ -1,7 +1,5 @@
 package org.spb.project.presenter.ui
 
-
-
 import androidx.compose.runtime.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntSize

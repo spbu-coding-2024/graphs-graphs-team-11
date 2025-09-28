@@ -1,6 +1,6 @@
-package org.spb.project.presenter
+package org.spb.project.presenter.algorithm
 
-import org.spb.project.common.*
+import org.spb.project.model.common.Graph
 
 /**
  * Реализация алгоритма Форд-Белмана для поиска минимальных расстояний до вершин
@@ -11,7 +11,7 @@ import org.spb.project.common.*
  * @param start вершина, от который ищем расстояния
  * @param finish вершина в кторую ищем кратчайщий путь
  */
-class FordBelmanShortPath(graph: Graph, start: Int, finish: Int){
+class FordBelmanShortPath(graph: Graph, start: Int, finish: Int) {
     private val edges = graph.getEdges()
     private val n = graph.getVertexes().size
 
@@ -33,19 +33,19 @@ class FordBelmanShortPath(graph: Graph, start: Int, finish: Int){
     /**
      * Реализация алгоритма Форд-Белмана
      */
-    fun fordBelman(): Int{
-        while (distances.size < n){
+    fun fordBelman(): Int {
+        while (distances.size < n) {
             distances.add(inf)
             predessors.add(-1)
         }
         distances[startVertex] = 0
-        for (i in 0..n-2){
+        for (i in 0..n - 2) {
             var j = 0
-            while (j < edges.size){
+            while (j < edges.size) {
                 var e = 0
-                while (e < edges[j].size){
-                    if (distances[j] != inf){
-                        if (distances[j] + edges[j][e].weight < distances[edges[j][e].vertex]){
+                while (e < edges[j].size) {
+                    if (distances[j] != inf) {
+                        if (distances[j] + edges[j][e].weight < distances[edges[j][e].vertex]) {
                             distances[edges[j][e].vertex] = distances[j] + edges[j][e].weight
                             predessors[edges[j][e].vertex] = j
                         }
@@ -56,11 +56,11 @@ class FordBelmanShortPath(graph: Graph, start: Int, finish: Int){
             }
         }
         var j = 0
-        while (j < edges.size){
+        while (j < edges.size) {
             var e = 0
-            while (e < edges[j].size){
-                if (distances[j] != inf){
-                    if (distances[j] + edges[j][e].weight < distances[edges[j][e].vertex]){
+            while (e < edges[j].size) {
+                if (distances[j] != inf) {
+                    if (distances[j] + edges[j][e].weight < distances[edges[j][e].vertex]) {
                         return -inf
                     }
                 }
@@ -74,14 +74,14 @@ class FordBelmanShortPath(graph: Graph, start: Int, finish: Int){
     /**
      * Функция вызывает алгоритм Форд-Белмана и восстанавливает путь из начальной вершины к конечной
      */
-    fun getShortestPath(): List<Int>?{
-        if( fordBelman() == -inf ){
+    fun getShortestPath(): List<Int>? {
+        if (fordBelman() == -inf) {
             return mutableListOf<Int>()
         }
         val path = mutableListOf<Int>()
         var current = finishVertex
-        while (current != startVertex){
-            if (current == -1){
+        while (current != startVertex) {
+            if (current == -1) {
                 return mutableListOf<Int>()
             }
             path.addFirst(current)

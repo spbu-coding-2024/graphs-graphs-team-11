@@ -1,4 +1,4 @@
-package org.spb.project.common
+package org.spb.project.model.common
 
 /**
  * Ребро в неориентированном или ориентированном графе.

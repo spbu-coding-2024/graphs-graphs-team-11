@@ -1,7 +1,7 @@
-package org.spb.project.presenter
+package org.spb.project.presenter.algorithm
 
-import org.spb.project.common.Graph
-import org.spb.project.common.Edge
+import org.spb.project.model.common.Graph
+import org.spb.project.model.common.Edge
 
 /**
  * Алгоритм Косараджу для поиска сильносвязных компонент в ориентированном графе.

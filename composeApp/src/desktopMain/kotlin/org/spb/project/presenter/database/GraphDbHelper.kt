@@ -1,7 +1,8 @@
-package org.spb.project.presenter
+package org.spb.project.presenter.database
 
-import org.spb.project.common.Graph
-import org.spb.project.common.GraphType
+import org.spb.project.model.common.Graph
+import org.spb.project.model.common.GraphType
+import org.spb.project.model.ui.GraphMeta
 import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.SQLException
@@ -67,7 +68,6 @@ object GraphDbHelper {
                     populateSampleGraph8()
                     populateSampleGraph9()
                     populateSampleGraph10()
-                    populateSampleGraph11()
                 }
             }
         }
@@ -366,7 +366,7 @@ object GraphDbHelper {
         val verts = g.getVertexes()
         for (i in 0 until nodeCount) {
             val distances = verts.mapIndexed { j, v ->
-                j to ((verts[i].x - v.x).let { dx -> dx*dx } + (verts[i].y - v.y).let { dy -> dy*dy })
+                j to ((verts[i].x - v.x).let { dx -> dx * dx } + (verts[i].y - v.y).let { dy -> dy * dy })
             }
             distances.filter { it.first != i }
                 .sortedBy { it.second }
@@ -463,7 +463,7 @@ object GraphDbHelper {
     private fun populateSampleGraph9() {
         // создаём взвешенный неориентированный граф
         val g = Graph(GraphType.WEIGHTED_NON_ORIENTED)
-        val rnd = kotlin.random.Random(42)
+        val rnd = Random(42)
 
         // границы области разброса
         val maxX = 800.0
@@ -494,7 +494,7 @@ object GraphDbHelper {
     private fun populateSampleGraph10() {
         // создаём не взвешенный неориентированный граф
         val g = Graph(GraphType.ORIENTED)
-        val rnd = kotlin.random.Random(42)
+        val rnd = Random(42)
 
         // границы области разброса
         val maxX = 800.0
@@ -517,7 +517,7 @@ object GraphDbHelper {
                     j = (j + 1) % n
                 }
                 // добавляем неориентированное ребро без веса
-                g.addEdge(i, j, 0,DEFAULT_EDGE_COLOR)
+                g.addEdge(i, j, 0, DEFAULT_EDGE_COLOR)
             }
         }
 

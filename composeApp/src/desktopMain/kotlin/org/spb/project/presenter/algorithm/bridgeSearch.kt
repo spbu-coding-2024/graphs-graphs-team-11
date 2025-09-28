@@ -5,8 +5,8 @@ import org.spb.project.common.GraphType
 import kotlin.math.min
 
 open class BridgeSearch(graph: Graph){
-
-    private var edgeList = graph.getEdges()
+    var NonOrientedGraph = graph
+    private var edgeList = NonOrientedGraph.getEdges()
     var time = 0
     val resultPair= mutableListOf<Pair<Int,Int>>()
     fun BridgeUtil( nextCurrent:Int, visited:MutableList<Boolean>, disc:MutableList<Int>, low: MutableList<Int>, parent:MutableList<Int>){
@@ -45,7 +45,7 @@ open class BridgeSearch(graph: Graph){
 
         }
         }
-        println(resultPair.toList())
+
         return resultPair.toList()
     }
 

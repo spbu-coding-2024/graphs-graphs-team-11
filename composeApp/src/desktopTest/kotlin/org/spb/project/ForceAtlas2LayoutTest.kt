@@ -2,10 +2,11 @@ package org.spb.project
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
-import org.spb.project.common.Graph
-import org.spb.project.common.GraphType
-import org.spb.project.presenter.ForceAtlas2Layout
-import org.spb.project.presenter.MinimumSpanningTree
+import org.spb.project.model.common.Graph
+import org.spb.project.model.common.GraphType
+import org.spb.project.model.common.Vertex
+import org.spb.project.presenter.algorithm.ForceAtlas2Layout
+import org.spb.project.presenter.algorithm.MinimumSpanningTree
 import kotlin.math.round
 import kotlin.math.sqrt
 
@@ -371,7 +372,7 @@ class ForceAtlas2LayoutTest {
     }
 
     // вспомогательная функция для вычисления евклидова расстояния
-    private fun distance(v1: org.spb.project.common.Vertex, v2: org.spb.project.common.Vertex): Double {
+    private fun distance(v1: Vertex, v2: Vertex): Double {
         val dx = v1.x - v2.x
         val dy = v1.y - v2.y
         return sqrt(dx*dx + dy*dy)
