@@ -1,6 +1,10 @@
 package org.spb.project.view
 
 import androidx.compose.animation.AnimatedVisibility
+import java.awt.SystemTray
+import java.awt.TrayIcon
+import java.awt.Image
+import java.awt.Toolkit
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -835,7 +839,6 @@ private fun LoadPanel(
                 ) {
                     Text("Загрузить")
                 }
-
                 // Сохранить текущий граф как новый в SQL: получаем новый ID, сохраняем и обновляем список
                 Button(onClick = {
                     val newId = GraphDbHelper.getNextGraphId()
@@ -860,6 +863,9 @@ private fun LoadPanel(
                     colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)
                 ) {
                     Text("Удалить", color = Color.White)
+                }
+                if (presenter.errorNeo4j == 1){
+                    Text("neo4j error")
                 }
             }
 

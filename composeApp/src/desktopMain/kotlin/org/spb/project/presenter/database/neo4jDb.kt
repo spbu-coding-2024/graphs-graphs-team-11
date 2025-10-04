@@ -25,7 +25,6 @@ class neo4jDb(val uri: String?, val user: String, val password: String) : AutoCl
         }
         }
             .flatten()
-
             driver.session().use { session ->
                 session.executeWrite { tx ->
                     tx.run(
