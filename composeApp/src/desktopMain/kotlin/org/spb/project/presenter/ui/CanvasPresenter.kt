@@ -74,6 +74,7 @@ class CanvasPresenter {
      */
     var pan by mutableStateOf(Offset.Zero); private set
     var result by mutableStateOf("")
+    var errorNeo4j by mutableStateOf(0)
 
     init {
         loadGraph()
@@ -220,7 +221,12 @@ class CanvasPresenter {
 
 
     fun loadNeo4jGraph(graphId: Int = 1) {
-        graph = neo4jDb.readGraph(graphId)
+        try {
+            graph = neo4jDb.readGraph(graphId)
+            errorNeo4j = 0
+        } catch (e: Exception){
+            errorNeo4j = 1
+        }
         nodesList.clear()
         graph.getVertexes().forEach { v ->
             nodesList.add(CircleNode(Offset(v.x.toFloat(), v.y.toFloat()), color = v.color))
@@ -236,7 +242,12 @@ class CanvasPresenter {
             v.y = node.offset.y.toDouble()
             v.color = node.color
         }
+        try{
         neo4jDb.saveGraphNeo4j(graph, graphId)
+            errorNeo4j = 0
+        } catch (e: Exception){
+            errorNeo4j = 1
+        }
 
     }
 
